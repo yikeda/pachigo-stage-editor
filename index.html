@@ -1,0 +1,1492 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PachiGo Stage Editor</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #e0e0e0; display: flex; height: 100vh; overflow: hidden; }
+
+/* ── Toolbar ── */
+#toolbar {
+  width: 210px; padding: 12px; background: #16213e; display: flex; flex-direction: column; gap: 6px;
+  border-right: 1px solid #0f3460; overflow-y: auto; flex-shrink: 0;
+}
+#toolbar h2 { font-size: 14px; color: #e94560; margin-bottom: 4px; }
+#toolbar h3 { font-size: 11px; color: #888; margin-top: 8px; text-transform: uppercase; letter-spacing: 1px; }
+
+.tool-btn {
+  padding: 8px 10px; background: #0f3460; border: 1px solid #1a4a7a; border-radius: 6px;
+  color: #e0e0e0; cursor: pointer; font-size: 12px; text-align: left; transition: all 0.15s;
+}
+.tool-btn:hover { background: #1a4a7a; }
+.tool-btn.active { background: #e94560; border-color: #e94560; color: #fff; }
+
+.file-btn {
+  padding: 6px 10px; background: #2a2a4a; border: 1px solid #444; border-radius: 4px;
+  color: #ccc; cursor: pointer; font-size: 11px; text-align: center; transition: all 0.15s;
+}
+.file-btn:hover { background: #3a3a5a; }
+
+.shortcut { float: right; color: #666; font-size: 10px; margin-left: 4px; }
+
+#grid-snap-group { display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+#grid-snap-group label { font-size: 11px; }
+#grid-snap-group input { width: 44px; padding: 2px 4px; background: #0f3460; border: 1px solid #1a4a7a; border-radius: 3px; color: #e0e0e0; font-size: 11px; }
+#grid-snap-group input[type="checkbox"] { width: auto; }
+
+/* ── Background image controls ── */
+#bg-group { margin-top: 4px; }
+#bg-group .bg-row { display: flex; align-items: center; gap: 4px; margin-top: 4px; }
+#bg-group .bg-row label { font-size: 10px; color: #aaa; width: 50px; flex-shrink: 0; }
+#bg-group .bg-row input[type="range"] { flex: 1; height: 14px; }
+#bg-group .bg-row input[type="number"] { width: 50px; padding: 2px 4px; background: #0f3460; border: 1px solid #1a4a7a; border-radius: 3px; color: #e0e0e0; font-size: 10px; }
+
+/* ── Mirror controls ── */
+#mirror-group { display: flex; gap: 6px; margin-top: 4px; }
+#mirror-group button {
+  flex: 1; padding: 6px 4px; background: #2a2a4a; border: 1px solid #444; border-radius: 4px;
+  color: #ccc; cursor: pointer; font-size: 10px; text-align: center; transition: all 0.15s;
+}
+#mirror-group button:hover { background: #3a3a5a; }
+#mirror-axis-group { display: flex; gap: 6px; margin-top: 4px; align-items: center; }
+#mirror-axis-group label { font-size: 10px; color: #aaa; }
+#mirror-axis-group input { width: 44px; padding: 2px 4px; background: #0f3460; border: 1px solid #1a4a7a; border-radius: 3px; color: #e0e0e0; font-size: 10px; }
+
+#status { margin-top: auto; font-size: 10px; color: #666; padding-top: 8px; border-top: 1px solid #333; }
+#coords { font-size: 11px; color: #aaa; margin-top: 4px; font-variant-numeric: tabular-nums; }
+#undo-info { font-size: 10px; color: #555; margin-top: 2px; }
+
+/* ── Canvas area ── */
+#canvas-wrap {
+  flex: 1; display: flex; align-items: center; justify-content: center; background: #111;
+  position: relative; overflow: hidden;
+}
+canvas { background: #1a1a1a; cursor: crosshair; }
+
+/* ── Properties panel ── */
+#props {
+  width: 240px; padding: 12px; background: #16213e; border-left: 1px solid #0f3460;
+  overflow-y: auto; font-size: 12px; flex-shrink: 0;
+}
+#props h3 { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+#props-content { display: flex; flex-direction: column; gap: 6px; }
+.prop-row { display: flex; align-items: center; gap: 6px; }
+.prop-row label { width: 70px; font-size: 11px; color: #aaa; flex-shrink: 0; }
+.prop-row input, .prop-row select {
+  flex: 1; padding: 4px 6px; background: #0f3460; border: 1px solid #1a4a7a;
+  border-radius: 3px; color: #e0e0e0; font-size: 11px;
+}
+.prop-row select { cursor: pointer; }
+.action-btn {
+  margin-top: 4px; padding: 6px; border: 1px solid #444; border-radius: 4px;
+  color: #fff; cursor: pointer; font-size: 11px; text-align: center;
+}
+.delete-btn { background: #8b0000; border-color: #a00; }
+.delete-btn:hover { background: #a00; }
+.mirror-btn { background: #2a4a6a; border-color: #3a6a9a; }
+.mirror-btn:hover { background: #3a6a9a; }
+
+#selection-info { font-size: 11px; color: #aaa; margin-top: 4px; }
+
+/* ── Drop overlay ── */
+#drop-overlay {
+  position: fixed; inset: 0; background: rgba(233,69,96,0.15); border: 3px dashed #e94560;
+  display: none; align-items: center; justify-content: center; z-index: 100;
+  font-size: 24px; color: #e94560; pointer-events: none;
+}
+#drop-overlay.visible { display: flex; }
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+  <h2>PachiGo Editor</h2>
+
+  <h3>File</h3>
+  <button class="file-btn" id="btn-load">Open JSON...</button>
+  <button class="file-btn" id="btn-export">Export JSON</button>
+  <input type="file" id="file-input" accept=".json" style="display:none">
+
+  <h3>Tools</h3>
+  <button class="tool-btn active" data-tool="select">Select / Move <span class="shortcut">V</span></button>
+  <button class="tool-btn" data-tool="rectselect">Range Select <span class="shortcut">R</span></button>
+  <button class="tool-btn" data-tool="peg">Peg (circle) <span class="shortcut">P</span></button>
+  <button class="tool-btn" data-tool="pocket">Pocket <span class="shortcut">O</span></button>
+  <button class="tool-btn" data-tool="wall">Wall (line) <span class="shortcut">W</span></button>
+  <button class="tool-btn" data-tool="collider">Collider (box) <span class="shortcut">B</span></button>
+  <button class="tool-btn" data-tool="launcher">Launcher <span class="shortcut">L</span></button>
+
+  <h3>Options</h3>
+  <div id="grid-snap-group">
+    <input type="checkbox" id="chk-grid" checked>
+    <label for="chk-grid">Grid</label>
+    <input type="checkbox" id="chk-snap">
+    <label for="chk-snap">Snap</label>
+    <input type="number" id="snap-size" value="2" min="1" max="20">
+  </div>
+
+  <h3>Background Image</h3>
+  <button class="file-btn" id="btn-bg">Load Image...</button>
+  <button class="file-btn" id="btn-bg-clear" style="display:none">Clear Image</button>
+  <input type="file" id="bg-input" accept="image/*" style="display:none">
+  <div id="bg-group" style="display:none">
+    <div class="bg-row"><label>Opacity</label><input type="range" id="bg-opacity" min="0" max="100" value="30"><span id="bg-opacity-val" style="font-size:10px;width:28px;text-align:right">30%</span></div>
+    <div class="bg-row"><label>Scale</label><input type="range" id="bg-scale" min="10" max="300" value="100"><span id="bg-scale-val" style="font-size:10px;width:28px;text-align:right">100%</span></div>
+    <div class="bg-row"><label>Offset X</label><input type="number" id="bg-ox" value="0" step="1"></div>
+    <div class="bg-row"><label>Offset Y</label><input type="number" id="bg-oy" value="0" step="1"></div>
+  </div>
+
+  <h3>Ball Check</h3>
+  <div id="ballcheck-group">
+    <div style="display:flex;align-items:center;gap:6px">
+      <input type="checkbox" id="chk-collision">
+      <label for="chk-collision" style="font-size:11px">Collision Radius</label>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+      <input type="checkbox" id="chk-probe">
+      <label for="chk-probe" style="font-size:11px">Ball Probe</label>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+      <input type="checkbox" id="chk-probe-phys">
+      <label for="chk-probe-phys" style="font-size:11px">Physics Probe</label>
+    </div>
+    <div class="bg-row" style="margin-top:4px">
+      <label>Ball r</label>
+      <input type="range" id="ball-radius" min="0.5" max="10" step="0.1" value="2.5">
+      <span id="ball-radius-val" style="font-size:10px;width:28px;text-align:right">2.5</span>
+    </div>
+  </div>
+
+  <h3>Mirror</h3>
+  <div id="mirror-group">
+    <button id="btn-mirror-lr">Left/Right</button>
+    <button id="btn-mirror-ud">Up/Down</button>
+  </div>
+  <div id="mirror-axis-group">
+    <label>X=</label><input type="number" id="mirror-cx" value="75" step="1">
+    <label>Y=</label><input type="number" id="mirror-cy" value="80" step="1">
+  </div>
+
+  <div id="coords">—</div>
+  <div id="undo-info"></div>
+  <div id="status">Drop JSON here or use Open</div>
+</div>
+
+<div id="canvas-wrap">
+  <canvas id="canvas"></canvas>
+</div>
+
+<div id="props">
+  <h3>Properties</h3>
+  <div id="props-content"><span style="color:#666">No selection</span></div>
+  <div id="selection-info"></div>
+</div>
+
+<div id="drop-overlay">Drop JSON file</div>
+
+<script>
+// ── Constants ──
+const BOARD_W = 150, BOARD_H = 160;
+const SCALE = 3.5;
+const AXIS_MARGIN = 28;
+const CW = BOARD_W * SCALE;
+const CH = BOARD_H * SCALE;
+const FULL_W = CW + AXIS_MARGIN;
+const FULL_H = CH + AXIS_MARGIN;
+
+// ── State ──
+let stageData = newStage();
+let currentTool = 'select';
+let selected = null;
+let multiSelected = [];
+let isDragging = false;
+let isMultiDragging = false;
+let dragOffset = { x: 0, y: 0 };
+let dragLastBoard = null;
+let wallStart = null;
+let colliderStart = null;
+let rectSelectStart = null;
+let rectSelectEnd = null;
+let mouseBoard = { x: 0, y: 0 };
+
+// Undo
+const undoStack = [];
+const MAX_UNDO = 50;
+
+// Ball check state
+let ballRadius = 2.5;
+let physBallPos = null; // { x, y } in board coords, null = not placed yet
+
+// Background image state
+let bgImage = null;
+let bgOpacity = 0.3;
+let bgScale = 1.0;
+let bgOffsetX = 0;
+let bgOffsetY = 0;
+
+// ── Canvas setup ──
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+canvas.width = FULL_W;
+canvas.height = FULL_H;
+
+// ── Coordinate conversion ──
+function boardToCanvas(bx, by) {
+  return { x: AXIS_MARGIN + bx * SCALE, y: (BOARD_H - by) * SCALE };
+}
+function canvasToBoard(cx, cy) {
+  return { x: (cx - AXIS_MARGIN) / SCALE, y: BOARD_H - cy / SCALE };
+}
+function snap(v) {
+  if (!document.getElementById('chk-snap').checked) return Math.round(v * 100) / 100;
+  const s = parseFloat(document.getElementById('snap-size').value) || 2;
+  return Math.round(v / s) * s;
+}
+
+// ── Undo ──
+function saveUndo() {
+  const snapshot = JSON.stringify({
+    pegs: stageData.pegs,
+    pockets: stageData.pockets,
+    walls: stageData.walls,
+    colliders: stageData.colliders,
+    launcher: stageData.launcher,
+    decorations: stageData.decorations,
+  });
+  if (undoStack.length > 0 && undoStack[undoStack.length - 1] === snapshot) return;
+  undoStack.push(snapshot);
+  if (undoStack.length > MAX_UNDO) undoStack.shift();
+  updateUndoInfo();
+}
+
+function undo() {
+  if (undoStack.length === 0) { setStatus('Nothing to undo'); return; }
+  const snapshot = JSON.parse(undoStack.pop());
+  stageData.pegs = snapshot.pegs;
+  stageData.pockets = snapshot.pockets;
+  stageData.walls = snapshot.walls;
+  stageData.colliders = snapshot.colliders;
+  stageData.launcher = snapshot.launcher;
+  stageData.decorations = snapshot.decorations;
+  selected = null;
+  multiSelected = [];
+  showProps();
+  draw();
+  updateUndoInfo();
+  setStatus('Undo');
+}
+
+function updateUndoInfo() {
+  document.getElementById('undo-info').textContent = undoStack.length > 0 ? `Undo: ${undoStack.length}` : '';
+}
+
+// ── New stage ──
+function newStage() {
+  return {
+    name: "NewStage",
+    size: { width: BOARD_W, height: BOARD_H },
+    pegs: [],
+    pockets: [],
+    walls: [
+      { id: "bounds_bottom", x1: 0, y1: 0, x2: 150, y2: 0, material: "wall" },
+      { id: "bounds_left", x1: 0, y1: 0, x2: 0, y2: 160, material: "wall" },
+      { id: "bounds_right", x1: 150, y1: 0, x2: 150, y2: 160, material: "wall" },
+      { id: "bounds_top", x1: 0, y1: 160, x2: 150, y2: 160, material: "wall" },
+    ],
+    colliders: [],
+    launcher: { x: 14, y: 40, angle: 90 },
+    decorations: [],
+  };
+}
+
+// ── Mirror axis values ──
+function getMirrorCX() { return parseFloat(document.getElementById('mirror-cx').value) || 75; }
+function getMirrorCY() { return parseFloat(document.getElementById('mirror-cy').value) || 80; }
+
+// ── Rendering ──
+const MATERIAL_COLORS = {
+  pin: '#ffffff', rubber: '#ff6b6b', pocketRim: '#ffd93d', steel: '#aaaaaa',
+  wall: '#4a90d9', rail: '#6dd5ed', soft: '#c39bd3',
+  win: '#00e676', drain: '#ff5252',
+};
+
+function isSel(type, index) {
+  return (selected && selected.type === type && selected.index === index)
+    || multiSelected.some(s => s.type === type && s.index === index);
+}
+
+function draw() {
+  ctx.clearRect(0, 0, FULL_W, FULL_H);
+
+  ctx.fillStyle = '#0e1528';
+  ctx.fillRect(0, 0, AXIS_MARGIN, FULL_H);
+  ctx.fillRect(0, CH, FULL_W, AXIS_MARGIN);
+
+  ctx.fillStyle = '#1c1c1c';
+  ctx.fillRect(AXIS_MARGIN, 0, CW, CH);
+
+  // Background image
+  if (bgImage) {
+    ctx.save();
+    ctx.globalAlpha = bgOpacity;
+    ctx.beginPath();
+    ctx.rect(AXIS_MARGIN, 0, CW, CH);
+    ctx.clip();
+    const iw = bgImage.width * bgScale * SCALE / 100;
+    const ih = bgImage.height * bgScale * SCALE / 100;
+    const ix = AXIS_MARGIN + bgOffsetX * SCALE;
+    const iy = bgOffsetY * SCALE;
+    ctx.drawImage(bgImage, ix, iy, iw, ih);
+    ctx.restore();
+  }
+
+  if (document.getElementById('chk-grid').checked) drawGrid();
+  drawAxisLabels();
+  drawMirrorAxes();
+
+  // Walls
+  stageData.walls.forEach((w, i) => {
+    const a = boardToCanvas(w.x1, w.y1);
+    const b = boardToCanvas(w.x2, w.y2);
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    const sel = isSel('walls', i);
+    ctx.strokeStyle = sel ? '#ffff00' : (MATERIAL_COLORS[w.material] || MATERIAL_COLORS.wall);
+    ctx.lineWidth = sel ? 3 : 1.5;
+    ctx.stroke();
+  });
+
+  // Colliders
+  stageData.colliders.forEach((c, i) => {
+    if (c.type !== 'box') return;
+    const center = boardToCanvas(c.x, c.y);
+    const sel = isSel('colliders', i);
+    ctx.save();
+    ctx.translate(center.x, center.y);
+    ctx.rotate(-(c.angle || 0) * Math.PI / 180);
+    const hw = (c.width * SCALE) / 2;
+    const hh = (c.height * SCALE) / 2;
+    ctx.fillStyle = sel ? 'rgba(255,255,0,0.3)' : 'rgba(74,144,217,0.2)';
+    ctx.strokeStyle = sel ? '#ffff00' : (MATERIAL_COLORS[c.material] || MATERIAL_COLORS.wall);
+    ctx.lineWidth = sel ? 2.5 : 1.5;
+    ctx.fillRect(-hw, -hh, hw * 2, hh * 2);
+    ctx.strokeRect(-hw, -hh, hw * 2, hh * 2);
+    ctx.restore();
+  });
+
+  // Pockets
+  stageData.pockets.forEach((p, i) => {
+    const c = boardToCanvas(p.x, p.y);
+    const sel = isSel('pockets', i);
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, p.assistRadius * SCALE, 0, Math.PI * 2);
+    ctx.fillStyle = p.kind === 'drain' ? 'rgba(255,82,82,0.1)' : 'rgba(0,230,118,0.1)';
+    ctx.fill();
+    ctx.strokeStyle = sel ? '#ffff00' : (p.kind === 'drain' ? 'rgba(255,82,82,0.3)' : 'rgba(0,230,118,0.3)');
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, p.innerRadius * SCALE, 0, Math.PI * 2);
+    ctx.fillStyle = p.kind === 'drain' ? 'rgba(255,82,82,0.3)' : 'rgba(0,230,118,0.3)';
+    ctx.fill();
+    ctx.strokeStyle = sel ? '#ffff00' : (MATERIAL_COLORS[p.kind] || MATERIAL_COLORS.win);
+    ctx.lineWidth = sel ? 2.5 : 1.5;
+    ctx.stroke();
+    ctx.fillStyle = '#fff';
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(p.kind === 'drain' ? 'OUT' : 'WIN', c.x, c.y);
+  });
+
+  // Pegs
+  stageData.pegs.forEach((p, i) => {
+    const c = boardToCanvas(p.x, p.y);
+    const sel = isSel('pegs', i);
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, Math.max(p.r * SCALE, 2), 0, Math.PI * 2);
+    ctx.fillStyle = sel ? '#ffff00' : (MATERIAL_COLORS[p.material] || MATERIAL_COLORS.pin);
+    ctx.fill();
+    if (sel) {
+      ctx.strokeStyle = '#ffff00';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  });
+
+  // Launcher
+  if (stageData.launcher) {
+    const lc = boardToCanvas(stageData.launcher.x, stageData.launcher.y);
+    const sel = isSel('launcher', 0);
+    const angle = (stageData.launcher.angle !== undefined ? stageData.launcher.angle : 90);
+    const rad = angle * Math.PI / 180;
+    ctx.beginPath();
+    ctx.arc(lc.x, lc.y, 6, 0, Math.PI * 2);
+    ctx.fillStyle = sel ? 'rgba(255,255,0,0.5)' : 'rgba(233,69,96,0.5)';
+    ctx.fill();
+    ctx.strokeStyle = sel ? '#ffff00' : '#e94560';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    const arrowLen = 14;
+    const adx = Math.cos(rad) * arrowLen;
+    const ady = -Math.sin(rad) * arrowLen;
+    const ax = lc.x + adx;
+    const ay = lc.y + ady;
+    ctx.beginPath();
+    ctx.moveTo(lc.x, lc.y);
+    ctx.lineTo(ax, ay);
+    ctx.strokeStyle = sel ? '#ffff00' : '#e94560';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    const headLen = 5;
+    const headAngle = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(ax - Math.cos(rad - headAngle) * headLen, ay + Math.sin(rad - headAngle) * headLen);
+    ctx.lineTo(ax, ay);
+    ctx.lineTo(ax - Math.cos(rad + headAngle) * headLen, ay + Math.sin(rad + headAngle) * headLen);
+    ctx.strokeStyle = sel ? '#ffff00' : '#e94560';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  // Wall-in-progress preview
+  if (currentTool === 'wall' && wallStart) {
+    const a = boardToCanvas(wallStart.x, wallStart.y);
+    const b = boardToCanvas(mouseBoard.x, mouseBoard.y);
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.strokeStyle = 'rgba(74,144,217,0.5)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 5]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Collider-in-progress preview
+  if (currentTool === 'collider' && colliderStart) {
+    const sx = Math.min(colliderStart.x, mouseBoard.x);
+    const sy = Math.max(colliderStart.y, mouseBoard.y);
+    const ex = Math.max(colliderStart.x, mouseBoard.x);
+    const ey = Math.min(colliderStart.y, mouseBoard.y);
+    const w = ex - sx, h = sy - ey;
+    const cx = (sx + ex) / 2, cy = (sy + ey) / 2;
+    const cc = boardToCanvas(cx, cy);
+    ctx.save();
+    ctx.translate(cc.x, cc.y);
+    const hw = (w * SCALE) / 2, hh = (h * SCALE) / 2;
+    ctx.fillStyle = 'rgba(74,144,217,0.15)';
+    ctx.strokeStyle = 'rgba(74,144,217,0.5)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 5]);
+    ctx.fillRect(-hw, -hh, hw * 2, hh * 2);
+    ctx.strokeRect(-hw, -hh, hw * 2, hh * 2);
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  // Range selection rectangle
+  if (currentTool === 'rectselect' && rectSelectStart && rectSelectEnd) {
+    const a = boardToCanvas(Math.min(rectSelectStart.x, rectSelectEnd.x), Math.max(rectSelectStart.y, rectSelectEnd.y));
+    const b = boardToCanvas(Math.max(rectSelectStart.x, rectSelectEnd.x), Math.min(rectSelectStart.y, rectSelectEnd.y));
+    ctx.strokeStyle = 'rgba(255,255,0,0.7)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 4]);
+    ctx.strokeRect(a.x, a.y, b.x - a.x, b.y - a.y);
+    ctx.fillStyle = 'rgba(255,255,0,0.05)';
+    ctx.fillRect(a.x, a.y, b.x - a.x, b.y - a.y);
+    ctx.setLineDash([]);
+  }
+
+  // ── Ball check: collision radius overlay ──
+  if (document.getElementById('chk-collision').checked) {
+    const br = ballRadius;
+    stageData.pegs.forEach(p => {
+      const c = boardToCanvas(p.x, p.y);
+      const effectiveR = (p.r + br) * SCALE;
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, effectiveR, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,120,50,0.12)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,120,50,0.35)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    });
+    // Check peg pairs for blocked gaps
+    for (let i = 0; i < stageData.pegs.length; i++) {
+      for (let j = i + 1; j < stageData.pegs.length; j++) {
+        const a = stageData.pegs[i], b = stageData.pegs[j];
+        const dist = Math.hypot(a.x - b.x, a.y - b.y);
+        const minGap = a.r + b.r + br * 2;
+        if (dist < minGap) {
+          const ca = boardToCanvas(a.x, a.y);
+          const cb = boardToCanvas(b.x, b.y);
+          ctx.beginPath();
+          ctx.moveTo(ca.x, ca.y);
+          ctx.lineTo(cb.x, cb.y);
+          ctx.strokeStyle = 'rgba(255,50,50,0.6)';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+      }
+    }
+  }
+
+  // ── Ball check: ball probe at cursor ──
+  if (document.getElementById('chk-probe').checked) {
+    const bx = mouseBoard.x, by = mouseBoard.y;
+    const br = ballRadius;
+    let colliding = false;
+
+    // Check pegs
+    for (const p of stageData.pegs) {
+      const dist = Math.hypot(bx - p.x, by - p.y);
+      if (dist < p.r + br) { colliding = true; break; }
+    }
+    // Check walls
+    if (!colliding) {
+      for (const w of stageData.walls) {
+        if (pointToSegmentDist(bx, by, w.x1, w.y1, w.x2, w.y2) < br) { colliding = true; break; }
+      }
+    }
+    // Check colliders (box)
+    if (!colliding) {
+      for (const c of stageData.colliders) {
+        if (c.type !== 'box') continue;
+        const cos = Math.cos(-(c.angle || 0) * Math.PI / 180);
+        const sin = Math.sin(-(c.angle || 0) * Math.PI / 180);
+        const dx = bx - c.x, dy = by - c.y;
+        const lx = Math.abs(dx * cos - dy * sin);
+        const ly = Math.abs(dx * sin + dy * cos);
+        if (lx < c.width / 2 + br && ly < c.height / 2 + br) { colliding = true; break; }
+      }
+    }
+
+    const cc = boardToCanvas(bx, by);
+    ctx.beginPath();
+    ctx.arc(cc.x, cc.y, br * SCALE, 0, Math.PI * 2);
+    ctx.fillStyle = colliding ? 'rgba(255,50,50,0.4)' : 'rgba(50,255,100,0.25)';
+    ctx.fill();
+    ctx.strokeStyle = colliding ? '#ff3333' : '#33ff66';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  // ── Ball check: physics probe (rubber band) ──
+  if (document.getElementById('chk-probe-phys').checked && physBallPos) {
+    const br = ballRadius;
+    const target = { x: mouseBoard.x, y: mouseBoard.y };
+    const ball = resolvePhysBall(physBallPos, target, br);
+    physBallPos = ball;
+
+    const bc = boardToCanvas(ball.x, ball.y);
+    const tc = boardToCanvas(target.x, target.y);
+
+    // Rubber band line
+    ctx.beginPath();
+    ctx.moveTo(bc.x, bc.y);
+    ctx.lineTo(tc.x, tc.y);
+    ctx.strokeStyle = 'rgba(255,200,50,0.5)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Ball
+    let stuck = Math.hypot(ball.x - target.x, ball.y - target.y) > br * 1.5;
+    ctx.beginPath();
+    ctx.arc(bc.x, bc.y, br * SCALE, 0, Math.PI * 2);
+    ctx.fillStyle = stuck ? 'rgba(255,50,50,0.5)' : 'rgba(50,200,255,0.35)';
+    ctx.fill();
+    ctx.strokeStyle = stuck ? '#ff3333' : '#33ccff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Cursor target dot
+    ctx.beginPath();
+    ctx.arc(tc.x, tc.y, 3, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,200,50,0.7)';
+    ctx.fill();
+  }
+}
+
+// ── Physics probe: move ball toward target with collision resolution ──
+function resolvePhysBall(pos, target, br) {
+  let bx = pos.x, by = pos.y;
+  const steps = 8;
+  const dx = (target.x - bx) / steps;
+  const dy = (target.y - by) / steps;
+
+  for (let s = 0; s < steps; s++) {
+    bx += dx;
+    by += dy;
+
+    // Resolve collisions iteratively
+    for (let iter = 0; iter < 5; iter++) {
+      let pushed = false;
+
+      // Pegs
+      for (const p of stageData.pegs) {
+        const dist = Math.hypot(bx - p.x, by - p.y);
+        const minDist = p.r + br;
+        if (dist < minDist && dist > 0.001) {
+          const nx = (bx - p.x) / dist;
+          const ny = (by - p.y) / dist;
+          bx = p.x + nx * minDist;
+          by = p.y + ny * minDist;
+          pushed = true;
+        }
+      }
+
+      // Walls
+      for (const w of stageData.walls) {
+        const res = pushFromSegment(bx, by, w.x1, w.y1, w.x2, w.y2, br);
+        if (res) { bx = res.x; by = res.y; pushed = true; }
+      }
+
+      // Colliders (box)
+      for (const c of stageData.colliders) {
+        if (c.type !== 'box') continue;
+        const res = pushFromBox(bx, by, c, br);
+        if (res) { bx = res.x; by = res.y; pushed = true; }
+      }
+
+      if (!pushed) break;
+    }
+  }
+
+  return { x: bx, y: by };
+}
+
+function pushFromSegment(px, py, x1, y1, x2, y2, br) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const len2 = dx * dx + dy * dy;
+  if (len2 === 0) {
+    const d = Math.hypot(px - x1, py - y1);
+    if (d < br && d > 0.001) {
+      const nx = (px - x1) / d, ny = (py - y1) / d;
+      return { x: x1 + nx * br, y: y1 + ny * br };
+    }
+    return null;
+  }
+  let t = ((px - x1) * dx + (py - y1) * dy) / len2;
+  t = Math.max(0, Math.min(1, t));
+  const cx = x1 + t * dx, cy = y1 + t * dy;
+  const dist = Math.hypot(px - cx, py - cy);
+  if (dist < br && dist > 0.001) {
+    const nx = (px - cx) / dist, ny = (py - cy) / dist;
+    return { x: cx + nx * br, y: cy + ny * br };
+  }
+  return null;
+}
+
+function pushFromBox(px, py, box, br) {
+  const rad = -(box.angle || 0) * Math.PI / 180;
+  const cos = Math.cos(rad), sin = Math.sin(rad);
+  const dx = px - box.x, dy = py - box.y;
+  let lx = dx * cos - dy * sin;
+  let ly = dx * sin + dy * cos;
+  const hw = box.width / 2, hh = box.height / 2;
+
+  const clx = Math.max(-hw, Math.min(hw, lx));
+  const cly = Math.max(-hh, Math.min(hh, ly));
+  const ddx = lx - clx, ddy = ly - cly;
+  const dist = Math.hypot(ddx, ddy);
+
+  if (dist < br && dist > 0.001) {
+    const nx = ddx / dist, ny = ddy / dist;
+    lx = clx + nx * br;
+    ly = cly + ny * br;
+    const cosR = Math.cos(-rad), sinR = Math.sin(-rad);
+    return {
+      x: box.x + lx * cosR - ly * sinR,
+      y: box.y + lx * sinR + ly * cosR,
+    };
+  }
+  // Inside the box
+  if (dist <= 0.001 && Math.abs(lx) < hw + br && Math.abs(ly) < hh + br) {
+    const overlapR = hw + br - Math.abs(lx);
+    const overlapT = hh + br - Math.abs(ly);
+    if (overlapR < overlapT) {
+      lx = (lx >= 0 ? hw + br : -(hw + br));
+    } else {
+      ly = (ly >= 0 ? hh + br : -(hh + br));
+    }
+    const cosR = Math.cos(-rad), sinR = Math.sin(-rad);
+    return {
+      x: box.x + lx * cosR - ly * sinR,
+      y: box.y + lx * sinR + ly * cosR,
+    };
+  }
+  return null;
+}
+
+function drawGrid() {
+  const gridSize = parseFloat(document.getElementById('snap-size').value) || 2;
+  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+  ctx.lineWidth = 0.5;
+  for (let x = 0; x <= BOARD_W; x += gridSize) {
+    const cx = AXIS_MARGIN + x * SCALE;
+    ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, CH); ctx.stroke();
+  }
+  for (let y = 0; y <= BOARD_H; y += gridSize) {
+    const cy = (BOARD_H - y) * SCALE;
+    ctx.beginPath(); ctx.moveTo(AXIS_MARGIN, cy); ctx.lineTo(FULL_W, cy); ctx.stroke();
+  }
+  ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= BOARD_W; x += 10) {
+    const cx = AXIS_MARGIN + x * SCALE;
+    ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, CH); ctx.stroke();
+  }
+  for (let y = 0; y <= BOARD_H; y += 10) {
+    const cy = (BOARD_H - y) * SCALE;
+    ctx.beginPath(); ctx.moveTo(AXIS_MARGIN, cy); ctx.lineTo(FULL_W, cy); ctx.stroke();
+  }
+}
+
+function drawAxisLabels() {
+  ctx.fillStyle = '#666';
+  ctx.font = '9px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  for (let x = 0; x <= BOARD_W; x += 10) {
+    ctx.fillText(x, AXIS_MARGIN + x * SCALE, CH + 4);
+  }
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  for (let y = 0; y <= BOARD_H; y += 10) {
+    ctx.fillText(y, AXIS_MARGIN - 4, (BOARD_H - y) * SCALE);
+  }
+}
+
+function drawMirrorAxes() {
+  const mcx = getMirrorCX();
+  const mcy = getMirrorCY();
+  ctx.strokeStyle = 'rgba(233,69,96,0.2)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 8]);
+  const cx = AXIS_MARGIN + mcx * SCALE;
+  const cy = (BOARD_H - mcy) * SCALE;
+  ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, CH); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(AXIS_MARGIN, cy); ctx.lineTo(FULL_W, cy); ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+// ── Hit testing ──
+function hitTest(bx, by) {
+  if (stageData.launcher) {
+    const dx = bx - stageData.launcher.x, dy = by - stageData.launcher.y;
+    if (dx * dx + dy * dy < 9) return { type: 'launcher', index: 0 };
+  }
+  for (let i = stageData.pegs.length - 1; i >= 0; i--) {
+    const p = stageData.pegs[i];
+    const dx = bx - p.x, dy = by - p.y;
+    const hr = Math.max(p.r, 2);
+    if (dx * dx + dy * dy < hr * hr + 9) return { type: 'pegs', index: i };
+  }
+  for (let i = stageData.pockets.length - 1; i >= 0; i--) {
+    const p = stageData.pockets[i];
+    const dx = bx - p.x, dy = by - p.y;
+    if (dx * dx + dy * dy < p.innerRadius * p.innerRadius + 9) return { type: 'pockets', index: i };
+  }
+  for (let i = stageData.colliders.length - 1; i >= 0; i--) {
+    const c = stageData.colliders[i];
+    if (c.type !== 'box') continue;
+    const cos = Math.cos(-(c.angle || 0) * Math.PI / 180);
+    const sin = Math.sin(-(c.angle || 0) * Math.PI / 180);
+    const dx = bx - c.x, dy = by - c.y;
+    const lx = Math.abs(dx * cos - dy * sin);
+    const ly = Math.abs(dx * sin + dy * cos);
+    if (lx <= c.width / 2 + 2 && ly <= c.height / 2 + 2) return { type: 'colliders', index: i };
+  }
+  for (let i = stageData.walls.length - 1; i >= 0; i--) {
+    const w = stageData.walls[i];
+    if (pointToSegmentDist(bx, by, w.x1, w.y1, w.x2, w.y2) < 3) return { type: 'walls', index: i };
+  }
+  return null;
+}
+
+function pointToSegmentDist(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const len2 = dx * dx + dy * dy;
+  if (len2 === 0) return Math.hypot(px - x1, py - y1);
+  let t = ((px - x1) * dx + (py - y1) * dy) / len2;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+}
+
+// ── Range selection ──
+function elementsInRect(x1, y1, x2, y2) {
+  const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
+  const minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
+  const results = [];
+  stageData.pegs.forEach((p, i) => {
+    if (p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY) results.push({ type: 'pegs', index: i });
+  });
+  stageData.pockets.forEach((p, i) => {
+    if (p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY) results.push({ type: 'pockets', index: i });
+  });
+  stageData.walls.forEach((w, i) => {
+    const wx = (w.x1 + w.x2) / 2, wy = (w.y1 + w.y2) / 2;
+    if (wx >= minX && wx <= maxX && wy >= minY && wy <= maxY) results.push({ type: 'walls', index: i });
+  });
+  stageData.colliders.forEach((c, i) => {
+    if (c.x >= minX && c.x <= maxX && c.y >= minY && c.y <= maxY) results.push({ type: 'colliders', index: i });
+  });
+  if (stageData.launcher) {
+    const l = stageData.launcher;
+    if (l.x >= minX && l.x <= maxX && l.y >= minY && l.y <= maxY) results.push({ type: 'launcher', index: 0 });
+  }
+  return results;
+}
+
+// ── Get element center for multi-drag hit test ──
+function getElementPos(sel) {
+  if (sel.type === 'launcher') return stageData.launcher;
+  const obj = stageData[sel.type]?.[sel.index];
+  if (!obj) return null;
+  if ('x' in obj) return { x: obj.x, y: obj.y };
+  if ('x1' in obj) return { x: (obj.x1 + obj.x2) / 2, y: (obj.y1 + obj.y2) / 2 };
+  return null;
+}
+
+function hitTestMultiSelected(bx, by) {
+  for (const sel of multiSelected) {
+    const pos = getElementPos(sel);
+    if (!pos) continue;
+    const dx = bx - pos.x, dy = by - pos.y;
+    if (dx * dx + dy * dy < 25) return true;
+    // For walls, check line proximity
+    if (sel.type === 'walls') {
+      const w = stageData.walls[sel.index];
+      if (w && pointToSegmentDist(bx, by, w.x1, w.y1, w.x2, w.y2) < 4) return true;
+    }
+  }
+  return false;
+}
+
+// ── Move element by delta ──
+function moveElement(sel, dx, dy) {
+  if (sel.type === 'launcher') {
+    stageData.launcher.x = snap(stageData.launcher.x + dx);
+    stageData.launcher.y = snap(stageData.launcher.y + dy);
+    return;
+  }
+  const obj = stageData[sel.type]?.[sel.index];
+  if (!obj) return;
+  if ('x1' in obj) {
+    obj.x1 = snap(obj.x1 + dx); obj.y1 = snap(obj.y1 + dy);
+    obj.x2 = snap(obj.x2 + dx); obj.y2 = snap(obj.y2 + dy);
+  } else {
+    obj.x = snap(obj.x + dx);
+    obj.y = snap(obj.y + dy);
+  }
+}
+
+// ── Properties panel ──
+function showProps() {
+  const container = document.getElementById('props-content');
+  const info = document.getElementById('selection-info');
+
+  if (multiSelected.length > 1) {
+    const counts = {};
+    multiSelected.forEach(s => { counts[s.type] = (counts[s.type] || 0) + 1; });
+    const summary = Object.entries(counts).map(([t, c]) => `${t}: ${c}`).join(', ');
+    container.innerHTML = `<span style="color:#ffd93d">${multiSelected.length} items selected</span>`;
+    container.innerHTML += '<button class="action-btn delete-btn" onclick="deleteMultiSelected()">Delete All Selected</button>';
+    container.innerHTML += '<button class="action-btn mirror-btn" onclick="mirrorMultiLR()">Mirror L/R</button>';
+    container.innerHTML += '<button class="action-btn mirror-btn" onclick="mirrorMultiUD()">Mirror U/D</button>';
+    info.textContent = summary;
+    return;
+  }
+
+  info.textContent = '';
+
+  if (!selected) {
+    container.innerHTML = '<span style="color:#666">No selection</span>';
+    return;
+  }
+
+  const obj = getSelectedObj();
+  if (!obj) { container.innerHTML = '<span style="color:#666">No selection</span>'; return; }
+
+  let html = '';
+  if (selected.type === 'pegs') {
+    html = propRow('x', obj.x) + propRow('y', obj.y) + propRow('r', obj.r)
+      + propSelect('material', obj.material || 'pin', ['pin', 'rubber', 'pocketRim', 'steel']);
+  } else if (selected.type === 'pockets') {
+    html = propRow('x', obj.x) + propRow('y', obj.y)
+      + propRow('innerRadius', obj.innerRadius) + propRow('assistRadius', obj.assistRadius)
+      + propSelect('kind', obj.kind || 'win', ['win', 'drain']);
+  } else if (selected.type === 'walls') {
+    html = propRow('x1', obj.x1) + propRow('y1', obj.y1) + propRow('x2', obj.x2) + propRow('y2', obj.y2)
+      + propInput('id', obj.id || '')
+      + propSelect('material', obj.material || 'wall', ['wall', 'rail', 'rubber', 'soft']);
+  } else if (selected.type === 'colliders') {
+    html = propRow('x', obj.x) + propRow('y', obj.y)
+      + propRow('width', obj.width) + propRow('height', obj.height)
+      + propRow('angle', obj.angle || 0)
+      + propInput('id', obj.id || '')
+      + propSelect('material', obj.material || 'wall', ['wall', 'rail', 'rubber', 'soft']);
+  } else if (selected.type === 'launcher') {
+    html = propRow('x', obj.x) + propRow('y', obj.y)
+      + propRow('angle', obj.angle !== undefined ? obj.angle : 90);
+  }
+
+  html += '<button class="action-btn delete-btn" onclick="deleteSelected()">Delete</button>';
+  html += '<button class="action-btn mirror-btn" onclick="mirrorSelectedLR()">Mirror L/R</button>';
+  html += '<button class="action-btn mirror-btn" onclick="mirrorSelectedUD()">Mirror U/D</button>';
+  container.innerHTML = html;
+
+  container.querySelectorAll('input, select').forEach(el => {
+    el.addEventListener('change', () => { saveUndo(); applyProps(); });
+  });
+}
+
+function propRow(label, value) {
+  const v = typeof value === 'number' ? Math.round(value * 100) / 100 : value;
+  return `<div class="prop-row"><label>${label}</label><input type="number" step="0.1" data-key="${label}" value="${v}"></div>`;
+}
+function propInput(label, value) {
+  return `<div class="prop-row"><label>${label}</label><input type="text" data-key="${label}" value="${value}"></div>`;
+}
+function propSelect(label, value, options) {
+  const opts = options.map(o => `<option value="${o}" ${o === value ? 'selected' : ''}>${o}</option>`).join('');
+  return `<div class="prop-row"><label>${label}</label><select data-key="${label}">${opts}</select></div>`;
+}
+
+function getSelectedObj() {
+  if (!selected) return null;
+  if (selected.type === 'launcher') return stageData.launcher;
+  return stageData[selected.type]?.[selected.index];
+}
+
+function applyProps() {
+  const obj = getSelectedObj();
+  if (!obj) return;
+  document.getElementById('props-content').querySelectorAll('[data-key]').forEach(el => {
+    const key = el.dataset.key;
+    obj[key] = el.type === 'number' ? (parseFloat(el.value) || 0) : el.value;
+  });
+  draw();
+}
+
+function deleteSelected() {
+  if (!selected || selected.type === 'launcher') return;
+  saveUndo();
+  stageData[selected.type].splice(selected.index, 1);
+  selected = null;
+  showProps();
+  draw();
+}
+
+function deleteMultiSelected() {
+  saveUndo();
+  const grouped = {};
+  multiSelected.forEach(s => {
+    if (s.type === 'launcher') return;
+    if (!grouped[s.type]) grouped[s.type] = [];
+    grouped[s.type].push(s.index);
+  });
+  for (const type of Object.keys(grouped)) {
+    grouped[type].sort((a, b) => b - a);
+    grouped[type].forEach(idx => stageData[type].splice(idx, 1));
+  }
+  multiSelected = [];
+  selected = null;
+  showProps();
+  draw();
+  setStatus('Deleted selected items');
+}
+
+// ── Mirror functions ──
+function mirrorObj(obj, type, axis) {
+  const clone = JSON.parse(JSON.stringify(obj));
+  const mcx = getMirrorCX();
+  const mcy = getMirrorCY();
+  if (axis === 'lr') {
+    if ('x' in clone) clone.x = 2 * mcx - clone.x;
+    if ('x1' in clone) { clone.x1 = 2 * mcx - clone.x1; clone.x2 = 2 * mcx - clone.x2; }
+    if ('angle' in clone && type === 'launcher') clone.angle = 180 - clone.angle;
+    else if ('angle' in clone) clone.angle = -clone.angle;
+  } else {
+    if ('y' in clone) clone.y = 2 * mcy - clone.y;
+    if ('y1' in clone) { clone.y1 = 2 * mcy - clone.y1; clone.y2 = 2 * mcy - clone.y2; }
+    if ('angle' in clone) clone.angle = -clone.angle;
+  }
+  if (clone.id) clone.id = clone.id + (axis === 'lr' ? '_mr' : '_mu');
+  return clone;
+}
+
+function mirrorSelectedLR() { mirrorSingle('lr'); }
+function mirrorSelectedUD() { mirrorSingle('ud'); }
+
+function mirrorSingle(axis) {
+  if (!selected || selected.type === 'launcher') return;
+  saveUndo();
+  const obj = getSelectedObj();
+  if (!obj) return;
+  const clone = mirrorObj(obj, selected.type, axis);
+  stageData[selected.type].push(clone);
+  selected = { type: selected.type, index: stageData[selected.type].length - 1 };
+  showProps();
+  draw();
+}
+
+function mirrorMultiLR() { mirrorMulti('lr'); }
+function mirrorMultiUD() { mirrorMulti('ud'); }
+
+function mirrorMulti(axis) {
+  saveUndo();
+  const newItems = [];
+  multiSelected.forEach(s => {
+    if (s.type === 'launcher') return;
+    const obj = stageData[s.type][s.index];
+    const clone = mirrorObj(obj, s.type, axis);
+    stageData[s.type].push(clone);
+    newItems.push({ type: s.type, index: stageData[s.type].length - 1 });
+  });
+  multiSelected = newItems;
+  selected = null;
+  showProps();
+  draw();
+  setStatus(`Mirrored ${newItems.length} items`);
+}
+
+document.getElementById('btn-mirror-lr').addEventListener('click', () => mirrorAll('lr'));
+document.getElementById('btn-mirror-ud').addEventListener('click', () => mirrorAll('ud'));
+
+function mirrorAll(axis) {
+  if (multiSelected.length > 0) { mirrorMulti(axis); return; }
+  if (selected && selected.type !== 'launcher') { mirrorSingle(axis); return; }
+  setStatus('Select items to mirror first');
+}
+
+// ── Mouse events ──
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const cx = e.clientX - rect.left;
+  const cy = e.clientY - rect.top;
+  const b = canvasToBoard(cx, cy);
+  mouseBoard = { x: snap(b.x), y: snap(b.y) };
+  document.getElementById('coords').textContent = `x: ${mouseBoard.x.toFixed(1)}  y: ${mouseBoard.y.toFixed(1)}`;
+
+  // Range select drag
+  if (currentTool === 'rectselect' && rectSelectStart) {
+    rectSelectEnd = { x: mouseBoard.x, y: mouseBoard.y };
+    draw();
+    return;
+  }
+
+  // Multi-drag
+  if (isMultiDragging && dragLastBoard) {
+    const dx = snap(b.x) - dragLastBoard.x;
+    const dy = snap(b.y) - dragLastBoard.y;
+    if (dx !== 0 || dy !== 0) {
+      multiSelected.forEach(sel => moveElement(sel, dx, dy));
+      dragLastBoard = { x: snap(b.x), y: snap(b.y) };
+      draw();
+    }
+    return;
+  }
+
+  // Single drag
+  if (isDragging && selected) {
+    const obj = getSelectedObj();
+    if (!obj) return;
+    const bx = snap(b.x - dragOffset.x);
+    const by = snap(b.y - dragOffset.y);
+    if (selected.type === 'walls') {
+      const dx = bx - obj.x1;
+      const dy = by - obj.y1;
+      obj.x1 = snap(obj.x1 + dx); obj.y1 = snap(obj.y1 + dy);
+      obj.x2 = snap(obj.x2 + dx); obj.y2 = snap(obj.y2 + dy);
+      dragOffset.x = b.x - obj.x1;
+      dragOffset.y = b.y - obj.y1;
+    } else {
+      obj.x = bx;
+      obj.y = by;
+    }
+    showProps();
+    draw();
+    return;
+  }
+
+  if (currentTool === 'wall' && wallStart) draw();
+  if (currentTool === 'collider' && colliderStart) draw();
+  if (document.getElementById('chk-probe').checked || document.getElementById('chk-probe-phys').checked) draw();
+});
+
+canvas.addEventListener('mousedown', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const cx = e.clientX - rect.left;
+  const cy = e.clientY - rect.top;
+  const b = canvasToBoard(cx, cy);
+  const bx = snap(b.x);
+  const by = snap(b.y);
+
+  if (currentTool === 'select') {
+    // If clicking on a multi-selected item, start multi-drag
+    if (multiSelected.length > 1 && hitTestMultiSelected(bx, by)) {
+      saveUndo();
+      isMultiDragging = true;
+      dragLastBoard = { x: bx, y: by };
+      return;
+    }
+    const hit = hitTest(bx, by);
+    selected = hit;
+    multiSelected = [];
+    showProps();
+    if (hit) {
+      saveUndo();
+      isDragging = true;
+      const obj = getSelectedObj();
+      if (selected.type === 'walls') {
+        dragOffset = { x: bx - obj.x1, y: by - obj.y1 };
+      } else {
+        dragOffset = { x: bx - obj.x, y: by - obj.y };
+      }
+    }
+    draw();
+    return;
+  }
+
+  if (currentTool === 'rectselect') {
+    rectSelectStart = { x: bx, y: by };
+    rectSelectEnd = { x: bx, y: by };
+    return;
+  }
+
+  if (currentTool === 'peg') {
+    saveUndo();
+    stageData.pegs.push({ x: bx, y: by, r: 1.3, material: 'pin' });
+    selected = { type: 'pegs', index: stageData.pegs.length - 1 };
+    multiSelected = [];
+    showProps(); draw();
+    return;
+  }
+
+  if (currentTool === 'pocket') {
+    saveUndo();
+    stageData.pockets.push({ x: bx, y: by, innerRadius: 5.5, assistRadius: 11, kind: 'win' });
+    selected = { type: 'pockets', index: stageData.pockets.length - 1 };
+    multiSelected = [];
+    showProps(); draw();
+    return;
+  }
+
+  if (currentTool === 'wall') {
+    if (!wallStart) {
+      wallStart = { x: bx, y: by };
+    } else {
+      saveUndo();
+      stageData.walls.push({ id: '', x1: wallStart.x, y1: wallStart.y, x2: bx, y2: by, material: 'wall' });
+      selected = { type: 'walls', index: stageData.walls.length - 1 };
+      multiSelected = [];
+      wallStart = null;
+      showProps(); draw();
+    }
+    return;
+  }
+
+  if (currentTool === 'collider') {
+    if (!colliderStart) {
+      colliderStart = { x: bx, y: by };
+    } else {
+      saveUndo();
+      const sx = Math.min(colliderStart.x, bx), sy = Math.max(colliderStart.y, by);
+      const ex = Math.max(colliderStart.x, bx), ey = Math.min(colliderStart.y, by);
+      stageData.colliders.push({
+        type: 'box', id: '',
+        x: snap((sx + ex) / 2), y: snap((sy + ey) / 2),
+        width: snap(Math.max(ex - sx, 1)), height: snap(Math.max(sy - ey, 1)),
+        angle: 0, material: 'wall',
+      });
+      selected = { type: 'colliders', index: stageData.colliders.length - 1 };
+      multiSelected = [];
+      colliderStart = null;
+      showProps(); draw();
+    }
+    return;
+  }
+
+  if (currentTool === 'launcher') {
+    saveUndo();
+    stageData.launcher = { x: bx, y: by, angle: stageData.launcher?.angle ?? 90 };
+    selected = { type: 'launcher', index: 0 };
+    multiSelected = [];
+    showProps(); draw();
+    return;
+  }
+});
+
+canvas.addEventListener('mouseup', () => {
+  isDragging = false;
+  isMultiDragging = false;
+  dragLastBoard = null;
+
+  if (currentTool === 'rectselect' && rectSelectStart && rectSelectEnd) {
+    const items = elementsInRect(rectSelectStart.x, rectSelectStart.y, rectSelectEnd.x, rectSelectEnd.y);
+    multiSelected = items;
+    selected = items.length === 1 ? items[0] : null;
+    rectSelectStart = null;
+    rectSelectEnd = null;
+    showProps(); draw();
+    setStatus(`Selected ${items.length} items`);
+  }
+});
+
+canvas.addEventListener('mouseleave', () => { isDragging = false; isMultiDragging = false; dragLastBoard = null; });
+
+// ── Keyboard shortcuts ──
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+  // Undo: Cmd+Z / Ctrl+Z
+  if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+    e.preventDefault();
+    undo();
+    return;
+  }
+
+  if (e.key === 'Escape') {
+    wallStart = null; colliderStart = null;
+    rectSelectStart = null; rectSelectEnd = null;
+    selected = null; multiSelected = [];
+    showProps(); draw();
+  }
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (multiSelected.length > 1) deleteMultiSelected();
+    else deleteSelected();
+  }
+  const shortcuts = { v: 'select', r: 'rectselect', p: 'peg', o: 'pocket', w: 'wall', b: 'collider', l: 'launcher' };
+  if (shortcuts[e.key]) setTool(shortcuts[e.key]);
+  if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
+    e.preventDefault();
+    duplicateSelected();
+  }
+});
+
+function duplicateSelected() {
+  if (!selected || selected.type === 'launcher') return;
+  saveUndo();
+  const obj = getSelectedObj();
+  if (!obj) return;
+  const clone = JSON.parse(JSON.stringify(obj));
+  if ('x' in clone) clone.x += 5;
+  if ('y' in clone) clone.y += 5;
+  if ('x1' in clone) { clone.x1 += 5; clone.y1 += 5; clone.x2 += 5; clone.y2 += 5; }
+  if (clone.id) clone.id = clone.id + '_copy';
+  stageData[selected.type].push(clone);
+  selected = { type: selected.type, index: stageData[selected.type].length - 1 };
+  showProps(); draw();
+}
+
+// ── Tool buttons ──
+function setTool(name) {
+  currentTool = name;
+  wallStart = null; colliderStart = null;
+  rectSelectStart = null; rectSelectEnd = null;
+  document.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('active', b.dataset.tool === name));
+}
+document.querySelectorAll('.tool-btn').forEach(btn => {
+  btn.addEventListener('click', () => setTool(btn.dataset.tool));
+});
+
+// ── File I/O ──
+document.getElementById('btn-load').addEventListener('click', () => {
+  if (window.showOpenFilePicker) {
+    (async () => {
+      try {
+        const [handle] = await window.showOpenFilePicker({
+          types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }],
+          multiple: false,
+        });
+        const file = await handle.getFile();
+        loadFile(file);
+      } catch (e) {
+        if (e.name !== 'AbortError') setStatus('Open failed: ' + e.message);
+      }
+    })();
+  } else {
+    document.getElementById('file-input').click();
+  }
+});
+document.getElementById('file-input').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (file) loadFile(file);
+  e.target.value = '';
+});
+
+function loadFile(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      stageData = {
+        ...newStage(), ...data,
+        pegs: data.pegs || [],
+        pockets: data.pockets || [],
+        walls: data.walls || [],
+        colliders: data.colliders || [],
+        launcher: data.launcher ? { angle: 90, ...data.launcher } : { x: 14, y: 40, angle: 90 },
+        decorations: data.decorations || [],
+      };
+      for (const k of Object.keys(data)) {
+        if (!(k in stageData)) stageData[k] = data[k];
+      }
+      selected = null; multiSelected = [];
+      undoStack.length = 0;
+      updateUndoInfo();
+      showProps(); draw();
+      setStatus(`Loaded: ${file.name}`);
+    } catch (err) {
+      setStatus(`Error: ${err.message}`);
+    }
+  };
+  reader.readAsText(file);
+}
+
+document.getElementById('btn-export').addEventListener('click', () => {
+  const output = { name: stageData.name, size: stageData.size };
+  if (stageData.version !== undefined) output.version = stageData.version;
+  if (stageData.metadata) output.metadata = stageData.metadata;
+  output.pegs = stageData.pegs;
+  output.pockets = stageData.pockets;
+  output.walls = stageData.walls;
+  if (stageData.colliders.length > 0) output.colliders = stageData.colliders;
+  output.launcher = stageData.launcher;
+  if (stageData.decorations && stageData.decorations.length > 0) output.decorations = stageData.decorations;
+  for (const k of Object.keys(stageData)) {
+    if (!(k in output)) output[k] = stageData[k];
+  }
+  const json = JSON.stringify(output, null, 2) + '\n';
+  const blob = new Blob([json], { type: 'application/json' });
+  const fileName = (stageData.name || 'stage') + '.json';
+
+  if (window.showSaveFilePicker) {
+    (async () => {
+      try {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: fileName,
+          types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }],
+        });
+        const writable = await handle.createWritable();
+        await writable.write(json);
+        await writable.close();
+        setStatus('Saved: ' + handle.name);
+      } catch (e) {
+        if (e.name !== 'AbortError') setStatus('Save failed: ' + e.message);
+      }
+    })();
+  } else {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(url);
+    setStatus('Exported: ' + fileName);
+  }
+});
+
+// ── Background image ──
+document.getElementById('btn-bg').addEventListener('click', () => document.getElementById('bg-input').click());
+document.getElementById('bg-input').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  loadBgImage(file);
+  e.target.value = '';
+});
+
+function loadBgImage(file) {
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const img = new Image();
+    img.onload = () => {
+      bgImage = img;
+      bgScale = Math.max(CW / img.width, CH / img.height) / SCALE * 100;
+      bgOffsetX = 0; bgOffsetY = 0;
+      document.getElementById('bg-scale').value = Math.round(bgScale);
+      document.getElementById('bg-scale-val').textContent = Math.round(bgScale) + '%';
+      document.getElementById('bg-group').style.display = 'block';
+      document.getElementById('btn-bg-clear').style.display = 'block';
+      draw();
+      setStatus('Background loaded');
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+document.getElementById('btn-bg-clear').addEventListener('click', () => {
+  bgImage = null;
+  document.getElementById('bg-group').style.display = 'none';
+  document.getElementById('btn-bg-clear').style.display = 'none';
+  draw();
+});
+
+document.getElementById('bg-opacity').addEventListener('input', (e) => {
+  bgOpacity = parseInt(e.target.value) / 100;
+  document.getElementById('bg-opacity-val').textContent = e.target.value + '%';
+  draw();
+});
+document.getElementById('bg-scale').addEventListener('input', (e) => {
+  bgScale = parseInt(e.target.value);
+  document.getElementById('bg-scale-val').textContent = e.target.value + '%';
+  draw();
+});
+document.getElementById('bg-ox').addEventListener('change', (e) => { bgOffsetX = parseFloat(e.target.value) || 0; draw(); });
+document.getElementById('bg-oy').addEventListener('change', (e) => { bgOffsetY = parseFloat(e.target.value) || 0; draw(); });
+
+// ── Mirror axis redraw ──
+document.getElementById('mirror-cx').addEventListener('change', draw);
+document.getElementById('mirror-cy').addEventListener('change', draw);
+
+// ── Drag & drop ──
+const overlay = document.getElementById('drop-overlay');
+let dragCounter = 0;
+document.addEventListener('dragenter', (e) => { e.preventDefault(); dragCounter++; overlay.classList.add('visible'); });
+document.addEventListener('dragleave', (e) => { e.preventDefault(); dragCounter--; if (dragCounter <= 0) { dragCounter = 0; overlay.classList.remove('visible'); } });
+document.addEventListener('dragover', (e) => { e.preventDefault(); });
+document.addEventListener('drop', (e) => {
+  e.preventDefault(); dragCounter = 0; overlay.classList.remove('visible');
+  const file = e.dataTransfer.files[0];
+  if (!file) return;
+  if (file.name.endsWith('.json')) loadFile(file);
+  else if (file.type.startsWith('image/')) loadBgImage(file);
+});
+
+// ── Status ──
+function setStatus(msg) { document.getElementById('status').textContent = msg; }
+
+// ── Grid/Snap change redraw ──
+document.getElementById('chk-grid').addEventListener('change', draw);
+document.getElementById('chk-snap').addEventListener('change', draw);
+document.getElementById('snap-size').addEventListener('change', draw);
+
+// ── Ball check events ──
+document.getElementById('chk-collision').addEventListener('change', draw);
+document.getElementById('chk-probe').addEventListener('change', draw);
+document.getElementById('chk-probe-phys').addEventListener('change', (e) => {
+  if (e.target.checked) physBallPos = { x: mouseBoard.x, y: mouseBoard.y };
+  else physBallPos = null;
+  draw();
+});
+document.getElementById('ball-radius').addEventListener('input', (e) => {
+  ballRadius = parseFloat(e.target.value);
+  document.getElementById('ball-radius-val').textContent = ballRadius.toFixed(1);
+  draw();
+});
+
+// ── Initial draw ──
+draw();
+</script>
+</body>
+</html>

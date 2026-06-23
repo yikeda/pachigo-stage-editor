@@ -63,7 +63,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   flex: 1; display: flex; align-items: center; justify-content: center; background: #111;
   position: relative; overflow: hidden;
 }
-canvas { background: #1a1a1a; cursor: crosshair; }
+canvas { background: #1a1a1a; cursor: crosshair; transform-origin: 0 0; }
 
 /* ── Properties panel ── */
 #props {
@@ -113,10 +113,53 @@ canvas { background: #1a1a1a; cursor: crosshair; }
   <button class="tool-btn active" data-tool="select">Select / Move <span class="shortcut">V</span></button>
   <button class="tool-btn" data-tool="rectselect">Range Select <span class="shortcut">R</span></button>
   <button class="tool-btn" data-tool="peg">Peg (circle) <span class="shortcut">P</span></button>
+  <div id="peg-defaults-group" style="display:none;margin-left:8px;margin-top:2px;font-size:10px">
+    <div style="display:flex;align-items:center;gap:4px">
+      <label style="color:#aaa;width:14px">r</label>
+      <input type="number" id="peg-default-r" value="1.5" step="0.1" min="0.5" max="10" style="width:48px;padding:2px 4px;background:#0f3460;border:1px solid #1a4a7a;border-radius:3px;color:#e0e0e0;font-size:10px">
+      <select id="peg-default-mat" style="padding:2px 4px;background:#0f3460;border:1px solid #1a4a7a;border-radius:3px;color:#e0e0e0;font-size:10px;flex:1">
+        <option value="pin">pin</option>
+        <option value="rubber">rubber</option>
+        <option value="pocketRim">pocketRim</option>
+        <option value="steel">steel</option>
+      </select>
+    </div>
+  </div>
   <button class="tool-btn" data-tool="pocket">Pocket <span class="shortcut">O</span></button>
+  <div id="pocket-kind-group" style="display:none;margin-left:8px;margin-top:2px">
+    <select id="pocket-kind-select" style="padding:3px 6px;background:#0f3460;border:1px solid #1a4a7a;border-radius:3px;color:#e0e0e0;font-size:11px;width:100%">
+      <option value="win">Win (+3)</option>
+      <option value="drain">Drain (0)</option>
+      <option value="chucker">Chucker (+8)</option>
+      <option value="tulip">Tulip (+5)</option>
+    </select>
+  </div>
   <button class="tool-btn" data-tool="wall">Wall (line) <span class="shortcut">W</span></button>
+  <div id="wall-defaults-group" style="display:none;margin-left:8px;margin-top:2px;font-size:10px">
+    <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px">
+      <input type="checkbox" id="chk-wall-chain">
+      <label for="chk-wall-chain" style="font-size:10px;color:#aaa">連続配置</label>
+    </div>
+    <select id="wall-default-mat" style="padding:3px 6px;background:#0f3460;border:1px solid #1a4a7a;border-radius:3px;color:#e0e0e0;font-size:10px;width:100%">
+      <option value="normal">normal (標準)</option>
+      <option value="slide">slide (滑り)</option>
+      <option value="bounce">bounce (弾み)</option>
+      <option value="absorb">absorb (吸収)</option>
+      <option value="mirror">mirror (完全反射)</option>
+    </select>
+  </div>
   <button class="tool-btn" data-tool="collider">Collider (box) <span class="shortcut">B</span></button>
+  <div id="collider-defaults-group" style="display:none;margin-left:8px;margin-top:2px;font-size:10px">
+    <select id="collider-default-mat" style="padding:3px 6px;background:#0f3460;border:1px solid #1a4a7a;border-radius:3px;color:#e0e0e0;font-size:10px;width:100%">
+      <option value="normal">normal (標準)</option>
+      <option value="slide">slide (滑り)</option>
+      <option value="bounce">bounce (弾み)</option>
+      <option value="absorb">absorb (吸収)</option>
+      <option value="mirror">mirror (完全反射)</option>
+    </select>
+  </div>
   <button class="tool-btn" data-tool="launcher">Launcher <span class="shortcut">L</span></button>
+  <button class="tool-btn" data-tool="oval">Oval Bounds <span class="shortcut">G</span></button>
 
   <h3>Options</h3>
   <div id="grid-snap-group">
@@ -138,6 +181,14 @@ canvas { background: #1a1a1a; cursor: crosshair; }
     <div class="bg-row"><label>Offset Y</label><input type="number" id="bg-oy" value="0" step="1"></div>
   </div>
 
+  <h3>View</h3>
+  <div id="zoom-group" style="display:flex;align-items:center;gap:6px">
+    <button class="file-btn" id="btn-zoom-out" style="width:28px;padding:4px 0;text-align:center">−</button>
+    <span id="zoom-val" style="font-size:11px;width:40px;text-align:center">100%</span>
+    <button class="file-btn" id="btn-zoom-in" style="width:28px;padding:4px 0;text-align:center">+</button>
+    <button class="file-btn" id="btn-zoom-reset" style="padding:4px 6px;font-size:10px">Reset</button>
+  </div>
+
   <h3>Ball Check</h3>
   <div id="ballcheck-group">
     <div style="display:flex;align-items:center;gap:6px">
@@ -157,6 +208,30 @@ canvas { background: #1a1a1a; cursor: crosshair; }
       <input type="range" id="ball-radius" min="0.5" max="10" step="0.1" value="2.5">
       <span id="ball-radius-val" style="font-size:10px;width:28px;text-align:right">2.5</span>
     </div>
+  </div>
+
+  <h3>Simulate</h3>
+  <div id="sim-group">
+    <div style="display:flex;gap:6px">
+      <button class="file-btn" id="btn-sim-launch" style="flex:1;background:#1a6b3a;border-color:#2a8b4a">Launch</button>
+      <button class="file-btn" id="btn-sim-reset" style="flex:1">Reset</button>
+    </div>
+    <div class="bg-row" style="margin-top:4px">
+      <label>Power</label>
+      <input type="range" id="sim-power" min="0.2" max="2.6" step="0.01" value="0.56">
+      <span id="sim-power-val" style="font-size:10px;width:28px;text-align:right">0.56</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+      <input type="checkbox" id="chk-sim-auto">
+      <label for="chk-sim-auto" style="font-size:11px">Auto fire</label>
+      <input type="number" id="sim-auto-interval" value="0.55" step="0.05" min="0.15" max="3" style="width:44px;padding:2px 4px;background:#0f3460;border:1px solid #1a4a7a;border-radius:3px;color:#e0e0e0;font-size:10px">
+      <label style="font-size:10px;color:#aaa">sec</label>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+      <input type="checkbox" id="chk-sim-trail">
+      <label for="chk-sim-trail" style="font-size:11px">Show trail</label>
+    </div>
+    <div id="sim-stats" style="font-size:10px;color:#888;margin-top:4px"></div>
   </div>
 
   <h3>Mirror</h3>
@@ -211,12 +286,463 @@ let rectSelectStart = null;
 let rectSelectEnd = null;
 let mouseBoard = { x: 0, y: 0 };
 
+// Zoom & Pan
+let zoomLevel = 1;
+let panX = 0, panY = 0;
+let isPanning = false;
+let spaceHeld = false;
+
 // Undo
 const undoStack = [];
 const MAX_UNDO = 50;
 
 // Ball check state
 let ballRadius = 2.5;
+
+// ── Simulation state ──
+let simBalls = [];
+let simRunning = false;
+let simAnimFrame = null;
+let simLastTime = 0;
+let simAccumulator = 0;
+const SIM_DT = 1.0 / 120.0;
+const MAX_FINISHED_TRAILS = 5;
+let simFinishedTrails = [];
+let simAutoTimer = 0;
+let simShotCount = 0;
+let simWinCount = 0;
+let simDrainCount = 0;
+let simBallCount = 100;
+let simOpenTulipIDs = new Set();
+let simTulipTimers = {};
+
+const SIM_TUNING = {
+  gravityY: -0.18,
+  maxSpeedX: 2.8,
+  maxSpeedY: 12.0,
+  pocketAssist: 0.18,
+};
+
+function pinRestitution(material) {
+  switch (material) {
+    case 'rubber': return 0.92;
+    case 'pocketRim': return 0.68;
+    case 'steel': return 0.72;
+    default: return 0.78;
+  }
+}
+function pinTangentDamping(material) {
+  switch (material) {
+    case 'rubber': return 0.75;
+    case 'pocketRim': return 0.82;
+    case 'steel': return 0.80;
+    default: return 0.85;
+  }
+}
+function wallRestitution(material) {
+  switch (material) {
+    case 'slide': case 'rail': return 0.55;
+    case 'bounce': case 'rubber': return 0.92;
+    case 'absorb': case 'soft': return 0.35;
+    case 'mirror': case 'glass': return 1.0;
+    default: return 0.68;
+  }
+}
+function wallTangentDamping(material) {
+  switch (material) {
+    case 'slide': case 'rail': return 0.98;
+    case 'bounce': case 'rubber': return 0.9;
+    case 'absorb': case 'soft': return 0.65;
+    case 'mirror': case 'glass': return 1.0;
+    default: return 0.82;
+  }
+}
+
+function simClamp(v, lo, hi) { return Math.min(Math.max(v, lo), hi); }
+
+function simMakeBall(power) {
+  const lx = stageData.launcher.x;
+  const ly = stageData.launcher.y;
+  const angle = (stageData.launcher.angle !== undefined ? stageData.launcher.angle : 90) * Math.PI / 180;
+  const speed = 1.0 + (power - 0.2) / 2.4 * 9.0;
+  return { x: lx, y: ly, vx: speed * Math.cos(angle), vy: speed * Math.sin(angle), radius: 2.4, frozen: false };
+}
+
+function saveTrail(b) {
+  if (!b.trail) return;
+  simFinishedTrails.push(b.trail);
+  if (simFinishedTrails.length > MAX_FINISHED_TRAILS) simFinishedTrails.shift();
+  b.trail = null;
+}
+
+function simLaunchBall() {
+  if (simBallCount <= 0) return;
+  const power = parseFloat(document.getElementById('sim-power').value);
+  const angleDeg = stageData.launcher.angle !== undefined ? stageData.launcher.angle : 90;
+  const launchAngle = angleDeg * Math.PI / 180;
+  const speed = 1.0 + (power - 0.2) / 2.4 * 9.0;
+  const vx = speed * Math.cos(launchAngle);
+  const vy = speed * Math.sin(launchAngle);
+  const ball = {
+    x: stageData.launcher.x, y: stageData.launcher.y,
+    vx, vy, radius: 2.4, frozen: false, trail: [[]],
+  };
+  if (simBalls.length >= 5) {
+    const frozenIdx = simBalls.findIndex(b => b.frozen);
+    if (frozenIdx >= 0) simBalls[frozenIdx] = ball;
+    else return;
+  } else {
+    simBalls.push(ball);
+  }
+  simBallCount--;
+  simShotCount++;
+  if (!simRunning) startSim();
+}
+
+function simStepPhysics() {
+  simTickTulipTimers();
+  const bounds = getPlayfieldBounds();
+  const showTrail = document.getElementById('chk-sim-trail').checked;
+
+  for (let i = 0; i < simBalls.length; i++) {
+    const b = simBalls[i];
+    if (b.frozen) continue;
+
+    // Gravity & velocity
+    b.vy = simClamp(b.vy + SIM_TUNING.gravityY, -SIM_TUNING.maxSpeedY, SIM_TUNING.maxSpeedY);
+    b.vx = simClamp(b.vx, -SIM_TUNING.maxSpeedX, SIM_TUNING.maxSpeedX);
+    const prevX = b.x, prevY = b.y;
+    b.x += b.vx;
+    b.y += b.vy;
+
+    // Trail
+    if (showTrail) {
+      if (!b.trail) b.trail = [[]];
+      const seg = b.trail[b.trail.length - 1];
+      seg.push({ x: b.x, y: b.y });
+    }
+
+    // Bounds collision
+    if (b.x - b.radius < bounds.left) { b.x = bounds.left + b.radius; b.vx = Math.abs(b.vx) * 0.68; }
+    if (b.x + b.radius > bounds.right) { b.x = bounds.right - b.radius; b.vx = -Math.abs(b.vx) * 0.68; }
+    if (b.y - b.radius < bounds.bottom) { simDrainCount++; b.frozen = true; saveTrail(b); b.x = stageData.launcher.x; b.y = stageData.launcher.y; b.vx = 0; b.vy = 0; continue; }
+    if (b.y + b.radius > bounds.top) { b.y = bounds.top - b.radius; b.vy = -Math.abs(b.vy) * 0.68; }
+
+    // Oval bounds
+    if (stageData.ovalBounds) simCollideOval(b, stageData.ovalBounds);
+
+    // Wall segments
+    for (const w of stageData.walls) {
+      simCollideWall(b, w.x1, w.y1, w.x2, w.y2, w.material || 'normal', prevX, prevY);
+    }
+
+    // Box colliders
+    for (const box of (stageData.colliders || [])) {
+      if (box.type !== 'box') continue;
+      simCollideBox(b, box);
+    }
+
+    // Pegs
+    for (const p of stageData.pegs) {
+      simCollidePeg(b, p);
+    }
+
+    // Pockets
+    for (const p of stageData.pockets) {
+      const dx = b.x - p.x, dy = b.y - p.y;
+      const dist2 = dx * dx + dy * dy;
+
+      if (p.kind === 'tulip') {
+        const isOpen = p.id && simOpenTulipIDs.has(p.id);
+        if (!isOpen) {
+          const rr = b.radius + p.innerRadius;
+          if (dist2 < rr * rr && dist2 > 0.0001) {
+            const len = Math.sqrt(dist2);
+            const nx = dx / len, ny = dy / len;
+            const dot = b.vx * nx + b.vy * ny;
+            if (dot < 0) {
+              b.vx -= 2 * dot * nx * 0.6;
+              b.vy -= 2 * dot * ny * 0.6;
+              b.x = p.x + nx * rr;
+              b.y = p.y + ny * rr;
+            }
+          }
+          continue;
+        }
+      }
+
+      simPocketAssist(b, p);
+      if (dist2 < p.innerRadius * p.innerRadius) {
+        const payout = p.payout !== undefined ? p.payout : (p.kind === 'drain' ? 0 : 3);
+        simBallCount += payout;
+        if (p.kind === 'drain') simDrainCount++;
+        else simWinCount++;
+        if (p.kind === 'chucker' && p.lottery) simRunLottery(p.lottery);
+        b.frozen = true; saveTrail(b);
+        b.x = stageData.launcher.x; b.y = stageData.launcher.y; b.vx = 0; b.vy = 0;
+        break;
+      }
+    }
+  }
+}
+
+function simCollidePeg(b, pin) {
+  const dx = b.x - pin.x, dy = b.y - pin.y;
+  const rr = b.radius + pin.r;
+  const dist2 = dx * dx + dy * dy;
+  if (dist2 >= rr * rr) return;
+
+  const len = Math.max(Math.sqrt(dist2), 0.0001);
+  const nx = dx / len, ny = dy / len;
+
+  const dot = b.vx * nx + b.vy * ny;
+  if (dot >= 0) return;
+
+  const bounce = pinRestitution(pin.material || 'pin');
+  const baseTang = pinTangentDamping(pin.material || 'pin');
+  const impactFactor = Math.min(-dot / 1.0, 1.0);
+  const tang = 1.0 - (1.0 - baseTang) * impactFactor;
+  const reflectedX = b.vx - (1 + bounce) * dot * nx;
+  const reflectedY = b.vy - (1 + bounce) * dot * ny;
+  const tx = -ny, ty = nx;
+  const tangentSpeed = reflectedX * tx + reflectedY * ty;
+  const normalSpeed = reflectedX * nx + reflectedY * ny;
+
+  b.vx = simClamp(tx * tangentSpeed * tang + nx * normalSpeed, -SIM_TUNING.maxSpeedX, SIM_TUNING.maxSpeedX);
+  b.vy = simClamp(ty * tangentSpeed * tang + ny * normalSpeed, -SIM_TUNING.maxSpeedY, SIM_TUNING.maxSpeedY);
+  b.x = pin.x + nx * (rr + 0.3);
+  b.y = pin.y + ny * (rr + 0.3);
+}
+
+function simApplyWallBounce(b, nx, ny, hitX, hitY, material) {
+  b.x = hitX + nx * (b.radius + 0.08);
+  b.y = hitY + ny * (b.radius + 0.08);
+  const dot = b.vx * nx + b.vy * ny;
+  if (dot >= 0) return;
+
+  const bounce = wallRestitution(material);
+  const baseTang = wallTangentDamping(material);
+  const impactFactor = Math.min(-dot / 1.0, 1.0);
+  const tang = 1.0 - (1.0 - baseTang) * impactFactor;
+  const rx = b.vx - (1 + bounce) * dot * nx;
+  const ry = b.vy - (1 + bounce) * dot * ny;
+  const tx = -ny, ty = nx;
+  const tSpeed = rx * tx + ry * ty;
+  const nSpeed = rx * nx + ry * ny;
+  b.vx = simClamp(tx * tSpeed * tang + nx * nSpeed, -SIM_TUNING.maxSpeedX, SIM_TUNING.maxSpeedX);
+  b.vy = simClamp(ty * tSpeed * tang + ny * nSpeed, -SIM_TUNING.maxSpeedY, SIM_TUNING.maxSpeedY);
+}
+
+function simCollideWall(b, x1, y1, x2, y2, material, prevX, prevY) {
+  const wdx = x2 - x1, wdy = y2 - y1;
+  const len2 = wdx * wdx + wdy * wdy;
+  if (len2 < 0.0001) return;
+
+  // Segment intersection test first (prevents tunneling)
+  const mdx = b.x - prevX, mdy = b.y - prevY;
+  const crossD = mdx * wdy - mdy * wdx;
+  if (Math.abs(crossD) > 0.0001) {
+    const qpx = x1 - prevX, qpy = y1 - prevY;
+    const tMove = (qpx * wdy - qpy * wdx) / crossD;
+    const uWall = (qpx * mdy - qpy * mdx) / crossD;
+    if (tMove > 0 && tMove <= 1 && uWall >= 0 && uWall <= 1) {
+      const len = Math.sqrt(len2);
+      let nx = -wdy / len, ny = wdx / len;
+      const side = (prevX - x1) * nx + (prevY - y1) * ny;
+      if (side < 0) { nx = -nx; ny = -ny; }
+      const hitX = prevX + mdx * tMove;
+      const hitY = prevY + mdy * tMove;
+      simApplyWallBounce(b, nx, ny, hitX, hitY, material);
+      return;
+    }
+  }
+
+  // Proximity check (handles slow approach / already near wall)
+  const t = simClamp(((b.x - x1) * wdx + (b.y - y1) * wdy) / len2, 0, 1);
+  const cx = x1 + wdx * t, cy = y1 + wdy * t;
+  const dx = b.x - cx, dy = b.y - cy;
+  const dist2 = dx * dx + dy * dy;
+  if (dist2 < b.radius * b.radius) {
+    const dist = Math.max(Math.sqrt(dist2), 0.0001);
+    simApplyWallBounce(b, dx / dist, dy / dist, cx, cy, material);
+  }
+}
+
+function simCollideBox(b, box) {
+  const rad = -(box.angle || 0) * Math.PI / 180;
+  const cosA = Math.cos(rad), sinA = Math.sin(rad);
+  const dx = b.x - box.x, dy = b.y - box.y;
+  let lx = dx * cosA - dy * sinA;
+  let ly = dx * sinA + dy * cosA;
+  const hw = box.width / 2, hh = box.height / 2;
+  const clx = simClamp(lx, -hw, hw), cly = simClamp(ly, -hh, hh);
+  let nlx = lx - clx, nly = ly - cly;
+  let dist2 = nlx * nlx + nly * nly;
+
+  if (dist2 < 0.0001) {
+    const ox = hw - Math.abs(lx), oy = hh - Math.abs(ly);
+    if (ox < oy) { nlx = lx >= 0 ? 1 : -1; nly = 0; dist2 = ox * ox; }
+    else { nlx = 0; nly = ly >= 0 ? 1 : -1; dist2 = oy * oy; }
+  }
+  if (dist2 >= b.radius * b.radius) return;
+
+  const dist = Math.max(Math.sqrt(dist2), 0.0001);
+  const lnx = nlx / dist, lny = nly / dist;
+  const wnx = lnx * cosA + lny * sinA;
+  const wny = -lnx * sinA + lny * cosA;
+  const push = b.radius - dist + 0.08;
+  const dot = b.vx * wnx + b.vy * wny;
+  b.x += wnx * push;
+  b.y += wny * push;
+  if (dot >= 0) return;
+
+  const bounce = wallRestitution(box.material || 'wall');
+  const baseTang = wallTangentDamping(box.material || 'wall');
+  const impactFactor = Math.min(-dot / 1.0, 1.0);
+  const tang = 1.0 - (1.0 - baseTang) * impactFactor;
+  const rx = b.vx - (1 + bounce) * dot * wnx;
+  const ry = b.vy - (1 + bounce) * dot * wny;
+  const tx = -wny, ty = wnx;
+  const tSpeed = rx * tx + ry * ty;
+  const nSpeed = rx * wnx + ry * wny;
+  b.vx = simClamp(tx * tSpeed * tang + wnx * nSpeed, -SIM_TUNING.maxSpeedX, SIM_TUNING.maxSpeedX);
+  b.vy = simClamp(ty * tSpeed * tang + wny * nSpeed, -SIM_TUNING.maxSpeedY, SIM_TUNING.maxSpeedY);
+}
+
+function simCollideOval(b, oval) {
+  const dx = b.x - oval.cx;
+  const dy = b.y - oval.cy;
+  const nx = dx / (oval.rx * oval.rx);
+  const ny = dy / (oval.ry * oval.ry);
+  const gradLen = Math.sqrt(nx * nx + ny * ny);
+  if (gradLen < 0.0001) return;
+
+  const t = (dx * dx) / (oval.rx * oval.rx) + (dy * dy) / (oval.ry * oval.ry);
+  if (t < 0.0001) return;
+  const rMin = Math.min(oval.rx, oval.ry);
+  const dist = (Math.sqrt(t) - 1.0) * rMin;
+  if (dist <= -b.radius) return;
+
+  const nnx = nx / gradLen;
+  const nny = ny / gradLen;
+  const sqrtT = Math.sqrt(t);
+  const surfaceX = oval.cx + dx / sqrtT;
+  const surfaceY = oval.cy + dy / sqrtT;
+  b.x = surfaceX - b.radius * nnx;
+  b.y = surfaceY - b.radius * nny;
+
+  const dot = b.vx * nnx + b.vy * nny;
+  if (dot <= 0) return;
+
+  const mat = oval.material || 'normal';
+  const bounce = wallRestitution(mat);
+  const baseTang = wallTangentDamping(mat);
+  const impactFactor = Math.min(dot / 1.0, 1.0);
+  const tang = 1.0 - (1.0 - baseTang) * impactFactor;
+  const rx = b.vx - (1 + bounce) * dot * nnx;
+  const ry = b.vy - (1 + bounce) * dot * nny;
+  const tx = -nny, ty = nnx;
+  const tSpeed = rx * tx + ry * ty;
+  const nSpeed = rx * nnx + ry * nny;
+  b.vx = tx * tSpeed * tang + nnx * nSpeed;
+  b.vy = ty * tSpeed * tang + nny * nSpeed;
+}
+
+function simPocketAssist(b, pocket) {
+  if (pocket.kind === 'drain') return;
+  const dx = pocket.x - b.x, dy = pocket.y - b.y;
+  const dist = Math.max(Math.sqrt(dx * dx + dy * dy), 0.0001);
+  if (dist >= pocket.assistRadius) return;
+  const t = 1 - dist / pocket.assistRadius;
+  const gain = SIM_TUNING.pocketAssist * t;
+  b.vx = simClamp(b.vx + (dx / dist) * gain, -SIM_TUNING.maxSpeedX, SIM_TUNING.maxSpeedX);
+  b.vy = simClamp(b.vy + (dy / dist) * gain, -SIM_TUNING.maxSpeedY, SIM_TUNING.maxSpeedY);
+}
+
+function simRunLottery(lottery) {
+  if (Math.random() >= lottery.winRate) return;
+  for (const tid of (lottery.opens || [])) {
+    simOpenTulipIDs.add(tid);
+    simTulipTimers[tid] = lottery.duration;
+  }
+}
+
+function simTickTulipTimers() {
+  for (const tid of Object.keys(simTulipTimers)) {
+    simTulipTimers[tid] -= SIM_DT;
+    if (simTulipTimers[tid] <= 0) {
+      simOpenTulipIDs.delete(tid);
+      delete simTulipTimers[tid];
+    }
+  }
+}
+
+function getPlayfieldBounds() {
+  return { left: 0, right: BOARD_W, bottom: 0, top: BOARD_H };
+}
+
+function startSim() {
+  if (simRunning) return;
+  simRunning = true;
+  simLastTime = 0;
+  simAccumulator = 0;
+  simAnimFrame = requestAnimationFrame(simLoop);
+}
+
+function stopSim() {
+  simRunning = false;
+  if (simAnimFrame) { cancelAnimationFrame(simAnimFrame); simAnimFrame = null; }
+}
+
+function resetSim() {
+  stopSim();
+  simBalls.length = 0;
+  simFinishedTrails.length = 0;
+  simShotCount = 0;
+  simWinCount = 0;
+  simDrainCount = 0;
+  simBallCount = stageData.initialBalls || 100;
+  simOpenTulipIDs.clear();
+  simTulipTimers = {};
+  simAutoTimer = 0;
+  updateSimStats();
+  draw();
+}
+
+function simLoop(timestamp) {
+  if (!simRunning) return;
+  const ts = timestamp / 1000;
+  if (simLastTime === 0) simLastTime = ts;
+  const dt = Math.min(ts - simLastTime, 1 / 20);
+  simLastTime = ts;
+  simAccumulator += dt;
+
+  while (simAccumulator >= SIM_DT) {
+    simStepPhysics();
+    simAccumulator -= SIM_DT;
+  }
+
+  // Auto fire
+  if (document.getElementById('chk-sim-auto').checked) {
+    simAutoTimer += dt;
+    const interval = parseFloat(document.getElementById('sim-auto-interval').value) || 0.55;
+    if (simAutoTimer >= interval) {
+      simAutoTimer = 0;
+      simLaunchBall();
+    }
+  }
+
+  updateSimStats();
+  draw();
+  simAnimFrame = requestAnimationFrame(simLoop);
+}
+
+function updateSimStats() {
+  const active = simBalls.filter(b => !b.frozen).length;
+  const tulipInfo = simOpenTulipIDs.size > 0 ? `  Tulips: ${simOpenTulipIDs.size}` : '';
+  document.getElementById('sim-stats').textContent =
+    `Balls: ${simBallCount}  Shots: ${simShotCount}  Win: ${simWinCount}  Drain: ${simDrainCount}${tulipInfo}`;
+}
 let physBallPos = null; // { x, y } in board coords, null = not placed yet
 
 // Background image state
@@ -231,6 +757,28 @@ const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 canvas.width = FULL_W;
 canvas.height = FULL_H;
+
+function applyZoom() {
+  canvas.style.transform = `scale(${zoomLevel}) translate(${panX}px, ${panY}px)`;
+  document.getElementById('zoom-val').textContent = Math.round(zoomLevel * 100) + '%';
+}
+
+function setZoom(newZoom, pivotCx, pivotCy) {
+  const oldZoom = zoomLevel;
+  zoomLevel = Math.min(Math.max(newZoom, 0.25), 5);
+  if (pivotCx !== undefined) {
+    panX += (pivotCx / zoomLevel - pivotCx / oldZoom);
+    panY += (pivotCy / zoomLevel - pivotCy / oldZoom);
+  }
+  applyZoom();
+}
+
+function canvasFromEvent(e) {
+  const rect = canvas.getBoundingClientRect();
+  const cx = (e.clientX - rect.left) * (canvas.width / rect.width);
+  const cy = (e.clientY - rect.top) * (canvas.height / rect.height);
+  return { cx, cy };
+}
 
 // ── Coordinate conversion ──
 function boardToCanvas(bx, by) {
@@ -254,6 +802,7 @@ function saveUndo() {
     colliders: stageData.colliders,
     launcher: stageData.launcher,
     decorations: stageData.decorations,
+    ovalBounds: stageData.ovalBounds || null,
   });
   if (undoStack.length > 0 && undoStack[undoStack.length - 1] === snapshot) return;
   undoStack.push(snapshot);
@@ -270,6 +819,8 @@ function undo() {
   stageData.colliders = snapshot.colliders;
   stageData.launcher = snapshot.launcher;
   stageData.decorations = snapshot.decorations;
+  if (snapshot.ovalBounds) stageData.ovalBounds = snapshot.ovalBounds;
+  else delete stageData.ovalBounds;
   selected = null;
   multiSelected = [];
   showProps();
@@ -287,14 +838,10 @@ function newStage() {
   return {
     name: "NewStage",
     size: { width: BOARD_W, height: BOARD_H },
+    initialBalls: 100,
     pegs: [],
     pockets: [],
-    walls: [
-      { id: "bounds_bottom", x1: 0, y1: 0, x2: 150, y2: 0, material: "wall" },
-      { id: "bounds_left", x1: 0, y1: 0, x2: 0, y2: 160, material: "wall" },
-      { id: "bounds_right", x1: 150, y1: 0, x2: 150, y2: 160, material: "wall" },
-      { id: "bounds_top", x1: 0, y1: 160, x2: 150, y2: 160, material: "wall" },
-    ],
+    walls: [],
     colliders: [],
     launcher: { x: 14, y: 40, angle: 90 },
     decorations: [],
@@ -308,9 +855,17 @@ function getMirrorCY() { return parseFloat(document.getElementById('mirror-cy').
 // ── Rendering ──
 const MATERIAL_COLORS = {
   pin: '#ffffff', rubber: '#ff6b6b', pocketRim: '#ffd93d', steel: '#aaaaaa',
-  wall: '#4a90d9', rail: '#6dd5ed', soft: '#c39bd3',
-  win: '#00e676', drain: '#ff5252',
+  normal: '#4a90d9', slide: '#6dd5ed', bounce: '#ff6b6b', absorb: '#c39bd3', mirror: '#99f2d9',
+  wall: '#4a90d9', rail: '#6dd5ed', soft: '#c39bd3', glass: '#99f2d9',
+  win: '#00e676', drain: '#ff5252', chucker: '#33ccff', tulip: '#ffd93d',
 };
+
+function pocketColor(kind) {
+  return { drain: 'rgba(255,82,82,', win: 'rgba(0,230,118,', chucker: 'rgba(51,204,255,', tulip: 'rgba(255,217,61,' }[kind] || 'rgba(0,230,118,';
+}
+function pocketLabel(kind) {
+  return { drain: 'OUT', win: 'IN', chucker: 'START', tulip: 'TULIP' }[kind] || kind;
+}
 
 function isSel(type, index) {
   return (selected && selected.type === type && selected.index === index)
@@ -345,6 +900,22 @@ function draw() {
   if (document.getElementById('chk-grid').checked) drawGrid();
   drawAxisLabels();
   drawMirrorAxes();
+
+  // Oval bounds
+  if (stageData.ovalBounds) {
+    const o = stageData.ovalBounds;
+    const c = boardToCanvas(o.cx, o.cy);
+    const sel = selected && selected.type === 'ovalBounds';
+    ctx.beginPath();
+    ctx.ellipse(c.x, c.y, o.rx * SCALE, o.ry * SCALE, 0, 0, Math.PI * 2);
+    ctx.strokeStyle = sel ? '#ffff00' : (MATERIAL_COLORS[o.material] || MATERIAL_COLORS.normal);
+    ctx.lineWidth = sel ? 3 : 2;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, sel ? 5 : 3, 0, Math.PI * 2);
+    ctx.fillStyle = sel ? '#ffff00' : 'rgba(255,255,255,0.3)';
+    ctx.fill();
+  }
 
   // Walls
   stageData.walls.forEach((w, i) => {
@@ -381,18 +952,38 @@ function draw() {
   stageData.pockets.forEach((p, i) => {
     const c = boardToCanvas(p.x, p.y);
     const sel = isSel('pockets', i);
+    const isTulip = p.kind === 'tulip';
+    const isOpen = isTulip && p.id && simOpenTulipIDs.has(p.id);
+
+    if (isTulip && !isOpen && simRunning) {
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, p.innerRadius * SCALE, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,217,61,0.15)';
+      ctx.fill();
+      ctx.strokeStyle = sel ? '#ffff00' : 'rgba(255,217,61,0.5)';
+      ctx.lineWidth = sel ? 2.5 : 1;
+      ctx.stroke();
+      ctx.fillStyle = '#aaa';
+      ctx.font = '8px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('CLOSED', c.x, c.y);
+      return;
+    }
+
+    const col = pocketColor(p.kind);
     ctx.beginPath();
     ctx.arc(c.x, c.y, p.assistRadius * SCALE, 0, Math.PI * 2);
-    ctx.fillStyle = p.kind === 'drain' ? 'rgba(255,82,82,0.1)' : 'rgba(0,230,118,0.1)';
+    ctx.fillStyle = col + '0.1)';
     ctx.fill();
-    ctx.strokeStyle = sel ? '#ffff00' : (p.kind === 'drain' ? 'rgba(255,82,82,0.3)' : 'rgba(0,230,118,0.3)');
+    ctx.strokeStyle = sel ? '#ffff00' : col + '0.3)';
     ctx.lineWidth = 1;
     ctx.setLineDash([3, 3]);
     ctx.stroke();
     ctx.setLineDash([]);
     ctx.beginPath();
     ctx.arc(c.x, c.y, p.innerRadius * SCALE, 0, Math.PI * 2);
-    ctx.fillStyle = p.kind === 'drain' ? 'rgba(255,82,82,0.3)' : 'rgba(0,230,118,0.3)';
+    ctx.fillStyle = col + '0.3)';
     ctx.fill();
     ctx.strokeStyle = sel ? '#ffff00' : (MATERIAL_COLORS[p.kind] || MATERIAL_COLORS.win);
     ctx.lineWidth = sel ? 2.5 : 1.5;
@@ -401,7 +992,12 @@ function draw() {
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(p.kind === 'drain' ? 'OUT' : 'WIN', c.x, c.y);
+    ctx.fillText(pocketLabel(p.kind), c.x, c.y);
+    if (p.payout !== undefined && p.payout !== 0) {
+      ctx.fillStyle = col + '0.8)';
+      ctx.font = '8px sans-serif';
+      ctx.fillText('+' + p.payout, c.x, c.y + p.innerRadius * SCALE + 10);
+    }
   });
 
   // Pegs
@@ -501,6 +1097,42 @@ function draw() {
     ctx.fillStyle = 'rgba(255,255,0,0.05)';
     ctx.fillRect(a.x, a.y, b.x - a.x, b.y - a.y);
     ctx.setLineDash([]);
+  }
+
+  // ── Simulation: trail ──
+  if (document.getElementById('chk-sim-trail').checked) {
+    ctx.lineWidth = 1;
+    const allTrails = [
+      ...simFinishedTrails.map(t => ({ trail: t, active: false })),
+      ...simBalls.filter(b => b.trail).map(b => ({ trail: b.trail, active: !b.frozen })),
+    ];
+    for (const { trail, active } of allTrails) {
+      ctx.strokeStyle = active ? 'rgba(100,200,255,0.35)' : 'rgba(100,200,255,0.18)';
+      for (const seg of trail) {
+        if (seg.length < 2) continue;
+        ctx.beginPath();
+        const c0 = boardToCanvas(seg[0].x, seg[0].y);
+        ctx.moveTo(c0.x, c0.y);
+        for (let i = 1; i < seg.length; i++) {
+          const c = boardToCanvas(seg[i].x, seg[i].y);
+          ctx.lineTo(c.x, c.y);
+        }
+        ctx.stroke();
+      }
+    }
+  }
+
+  // ── Simulation: balls ──
+  for (const b of simBalls) {
+    if (b.frozen) continue;
+    const c = boardToCanvas(b.x, b.y);
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, b.radius * SCALE, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(220,220,255,0.8)';
+    ctx.fill();
+    ctx.strokeStyle = '#aaccff';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
   }
 
   // ── Ball check: collision radius overlay ──
@@ -809,6 +1441,13 @@ function hitTest(bx, by) {
     const w = stageData.walls[i];
     if (pointToSegmentDist(bx, by, w.x1, w.y1, w.x2, w.y2) < 3) return { type: 'walls', index: i };
   }
+  if (stageData.ovalBounds) {
+    const o = stageData.ovalBounds;
+    const dx = bx - o.cx, dy = by - o.cy;
+    if (dx * dx + dy * dy < 25) return { type: 'ovalBounds', index: 0 };
+    const t = Math.sqrt((dx * dx) / (o.rx * o.rx) + (dy * dy) / (o.ry * o.ry));
+    if (Math.abs(t - 1.0) < 0.08) return { type: 'ovalBounds', index: 0 };
+  }
   return null;
 }
 
@@ -849,6 +1488,7 @@ function elementsInRect(x1, y1, x2, y2) {
 // ── Get element center for multi-drag hit test ──
 function getElementPos(sel) {
   if (sel.type === 'launcher') return stageData.launcher;
+  if (sel.type === 'ovalBounds' && stageData.ovalBounds) return { x: stageData.ovalBounds.cx, y: stageData.ovalBounds.cy };
   const obj = stageData[sel.type]?.[sel.index];
   if (!obj) return null;
   if ('x' in obj) return { x: obj.x, y: obj.y };
@@ -876,6 +1516,11 @@ function moveElement(sel, dx, dy) {
   if (sel.type === 'launcher') {
     stageData.launcher.x = snap(stageData.launcher.x + dx);
     stageData.launcher.y = snap(stageData.launcher.y + dy);
+    return;
+  }
+  if (sel.type === 'ovalBounds' && stageData.ovalBounds) {
+    stageData.ovalBounds.cx = snap(stageData.ovalBounds.cx + dx);
+    stageData.ovalBounds.cy = snap(stageData.ovalBounds.cy + dy);
     return;
   }
   const obj = stageData[sel.type]?.[sel.index];
@@ -923,20 +1568,37 @@ function showProps() {
   } else if (selected.type === 'pockets') {
     html = propRow('x', obj.x) + propRow('y', obj.y)
       + propRow('innerRadius', obj.innerRadius) + propRow('assistRadius', obj.assistRadius)
-      + propSelect('kind', obj.kind || 'win', ['win', 'drain']);
+      + propSelect('kind', obj.kind || 'win', ['win', 'drain', 'chucker', 'tulip'])
+      + propRow('payout', obj.payout !== undefined ? obj.payout : (obj.kind === 'drain' ? 0 : 3));
+    if (obj.kind === 'chucker' || obj.kind === 'tulip') {
+      html += propInput('id', obj.id || '');
+    }
+    if (obj.kind === 'chucker') {
+      const lot = obj.lottery || { winRate: 0.3, opens: [], duration: 5 };
+      html += '<div style="margin-top:6px;padding:6px;background:#0a1e3a;border-radius:4px;font-size:10px;color:#aaa">'
+        + '<div style="margin-bottom:4px;color:#6dd5ed;font-weight:bold">Lottery</div>'
+        + propRow('winRate', lot.winRate)
+        + propInput('opens', (lot.opens || []).join(','))
+        + propRow('duration', lot.duration)
+        + '</div>';
+    }
   } else if (selected.type === 'walls') {
     html = propRow('x1', obj.x1) + propRow('y1', obj.y1) + propRow('x2', obj.x2) + propRow('y2', obj.y2)
       + propInput('id', obj.id || '')
-      + propSelect('material', obj.material || 'wall', ['wall', 'rail', 'rubber', 'soft']);
+      + propSelect('material', obj.material || 'wall', ['normal', 'slide', 'bounce', 'absorb', 'mirror']);
   } else if (selected.type === 'colliders') {
     html = propRow('x', obj.x) + propRow('y', obj.y)
       + propRow('width', obj.width) + propRow('height', obj.height)
       + propRow('angle', obj.angle || 0)
       + propInput('id', obj.id || '')
-      + propSelect('material', obj.material || 'wall', ['wall', 'rail', 'rubber', 'soft']);
+      + propSelect('material', obj.material || 'wall', ['normal', 'slide', 'bounce', 'absorb', 'mirror']);
   } else if (selected.type === 'launcher') {
     html = propRow('x', obj.x) + propRow('y', obj.y)
       + propRow('angle', obj.angle !== undefined ? obj.angle : 90);
+  } else if (selected.type === 'ovalBounds') {
+    html = propRow('cx', obj.cx) + propRow('cy', obj.cy)
+      + propRow('rx', obj.rx) + propRow('ry', obj.ry)
+      + propSelect('material', obj.material || 'normal', ['normal', 'slide', 'bounce', 'absorb', 'mirror']);
   }
 
   html += '<button class="action-btn delete-btn" onclick="deleteSelected()">Delete</button>';
@@ -945,7 +1607,15 @@ function showProps() {
   container.innerHTML = html;
 
   container.querySelectorAll('input, select').forEach(el => {
-    el.addEventListener('change', () => { saveUndo(); applyProps(); });
+    if (el.dataset.key === 'kind' && selected && selected.type === 'pockets') {
+      el.addEventListener('change', () => {
+        const obj = getSelectedObj();
+        if (obj) obj._prevKind = obj.kind;
+        saveUndo(); applyProps();
+      });
+    } else {
+      el.addEventListener('change', () => { saveUndo(); applyProps(); });
+    }
   });
 }
 
@@ -964,22 +1634,53 @@ function propSelect(label, value, options) {
 function getSelectedObj() {
   if (!selected) return null;
   if (selected.type === 'launcher') return stageData.launcher;
+  if (selected.type === 'ovalBounds') return stageData.ovalBounds;
   return stageData[selected.type]?.[selected.index];
 }
 
 function applyProps() {
   const obj = getSelectedObj();
   if (!obj) return;
+  const isPocket = selected && selected.type === 'pockets';
   document.getElementById('props-content').querySelectorAll('[data-key]').forEach(el => {
     const key = el.dataset.key;
+    if (isPocket && obj.kind === 'chucker') {
+      if (key === 'opens') {
+        if (!obj.lottery) obj.lottery = { winRate: 0.3, opens: [], duration: 5 };
+        obj.lottery.opens = el.value.split(',').map(s => s.trim()).filter(Boolean);
+        return;
+      }
+      if (key === 'winRate') {
+        if (!obj.lottery) obj.lottery = { winRate: 0.3, opens: [], duration: 5 };
+        obj.lottery.winRate = parseFloat(el.value) || 0;
+        return;
+      }
+      if (key === 'duration') {
+        if (!obj.lottery) obj.lottery = { winRate: 0.3, opens: [], duration: 5 };
+        obj.lottery.duration = parseFloat(el.value) || 0;
+        return;
+      }
+    }
     obj[key] = el.type === 'number' ? (parseFloat(el.value) || 0) : el.value;
   });
+  if (isPocket) {
+    const prevKind = obj._prevKind;
+    if (prevKind && prevKind !== obj.kind) {
+      if ((obj.kind === 'chucker' || obj.kind === 'tulip') && !obj.id) obj.id = obj.kind + '_' + Date.now();
+      if (obj.kind === 'chucker' && !obj.lottery) obj.lottery = { winRate: 0.3, opens: [], duration: 5 };
+      if (obj.kind !== 'chucker') delete obj.lottery;
+      if (obj.kind !== 'chucker' && obj.kind !== 'tulip') delete obj.id;
+      showProps();
+    }
+    delete obj._prevKind;
+  }
   draw();
 }
 
 function deleteSelected() {
   if (!selected || selected.type === 'launcher') return;
   saveUndo();
+  if (selected.type === 'ovalBounds') { delete stageData.ovalBounds; selected = null; showProps(); draw(); return; }
   stageData[selected.type].splice(selected.index, 1);
   selected = null;
   showProps();
@@ -1070,9 +1771,13 @@ function mirrorAll(axis) {
 
 // ── Mouse events ──
 canvas.addEventListener('mousemove', (e) => {
-  const rect = canvas.getBoundingClientRect();
-  const cx = e.clientX - rect.left;
-  const cy = e.clientY - rect.top;
+  if (isPanning) {
+    panX += e.movementX / zoomLevel;
+    panY += e.movementY / zoomLevel;
+    applyZoom();
+    return;
+  }
+  const { cx, cy } = canvasFromEvent(e);
   const b = canvasToBoard(cx, cy);
   mouseBoard = { x: snap(b.x), y: snap(b.y) };
   document.getElementById('coords').textContent = `x: ${mouseBoard.x.toFixed(1)}  y: ${mouseBoard.y.toFixed(1)}`;
@@ -1109,6 +1814,9 @@ canvas.addEventListener('mousemove', (e) => {
       obj.x2 = snap(obj.x2 + dx); obj.y2 = snap(obj.y2 + dy);
       dragOffset.x = b.x - obj.x1;
       dragOffset.y = b.y - obj.y1;
+    } else if (selected.type === 'ovalBounds') {
+      obj.cx = bx;
+      obj.cy = by;
     } else {
       obj.x = bx;
       obj.y = by;
@@ -1124,9 +1832,13 @@ canvas.addEventListener('mousemove', (e) => {
 });
 
 canvas.addEventListener('mousedown', (e) => {
-  const rect = canvas.getBoundingClientRect();
-  const cx = e.clientX - rect.left;
-  const cy = e.clientY - rect.top;
+  if (e.button === 1 || (e.button === 0 && (e.altKey || spaceHeld))) {
+    isPanning = true;
+    canvas.style.cursor = 'grabbing';
+    e.preventDefault();
+    return;
+  }
+  const { cx, cy } = canvasFromEvent(e);
   const b = canvasToBoard(cx, cy);
   const bx = snap(b.x);
   const by = snap(b.y);
@@ -1149,6 +1861,8 @@ canvas.addEventListener('mousedown', (e) => {
       const obj = getSelectedObj();
       if (selected.type === 'walls') {
         dragOffset = { x: bx - obj.x1, y: by - obj.y1 };
+      } else if (selected.type === 'ovalBounds') {
+        dragOffset = { x: bx - obj.cx, y: by - obj.cy };
       } else {
         dragOffset = { x: bx - obj.x, y: by - obj.y };
       }
@@ -1165,7 +1879,9 @@ canvas.addEventListener('mousedown', (e) => {
 
   if (currentTool === 'peg') {
     saveUndo();
-    stageData.pegs.push({ x: bx, y: by, r: 1.3, material: 'pin' });
+    const defR = parseFloat(document.getElementById('peg-default-r').value) || 1.5;
+    const defMat = document.getElementById('peg-default-mat').value || 'pin';
+    stageData.pegs.push({ x: bx, y: by, r: defR, material: defMat });
     selected = { type: 'pegs', index: stageData.pegs.length - 1 };
     multiSelected = [];
     showProps(); draw();
@@ -1174,7 +1890,14 @@ canvas.addEventListener('mousedown', (e) => {
 
   if (currentTool === 'pocket') {
     saveUndo();
-    stageData.pockets.push({ x: bx, y: by, innerRadius: 5.5, assistRadius: 11, kind: 'win' });
+    const pKind = document.getElementById('pocket-kind-select').value;
+    const newPocket = { x: bx, y: by, innerRadius: 5.5, assistRadius: 11, kind: pKind };
+    if (pKind === 'chucker' || pKind === 'tulip') newPocket.id = pKind + '_' + Date.now();
+    if (pKind === 'win') newPocket.payout = 3;
+    else if (pKind === 'chucker') { newPocket.payout = 8; newPocket.lottery = { winRate: 0.3, opens: [], duration: 5 }; }
+    else if (pKind === 'tulip') newPocket.payout = 5;
+    else newPocket.payout = 0;
+    stageData.pockets.push(newPocket);
     selected = { type: 'pockets', index: stageData.pockets.length - 1 };
     multiSelected = [];
     showProps(); draw();
@@ -1186,10 +1909,11 @@ canvas.addEventListener('mousedown', (e) => {
       wallStart = { x: bx, y: by };
     } else {
       saveUndo();
-      stageData.walls.push({ id: '', x1: wallStart.x, y1: wallStart.y, x2: bx, y2: by, material: 'wall' });
+      const wallMat = document.getElementById('wall-default-mat').value || 'normal';
+      stageData.walls.push({ id: '', x1: wallStart.x, y1: wallStart.y, x2: bx, y2: by, material: wallMat });
       selected = { type: 'walls', index: stageData.walls.length - 1 };
       multiSelected = [];
-      wallStart = null;
+      wallStart = document.getElementById('chk-wall-chain').checked ? { x: bx, y: by } : null;
       showProps(); draw();
     }
     return;
@@ -1206,7 +1930,7 @@ canvas.addEventListener('mousedown', (e) => {
         type: 'box', id: '',
         x: snap((sx + ex) / 2), y: snap((sy + ey) / 2),
         width: snap(Math.max(ex - sx, 1)), height: snap(Math.max(sy - ey, 1)),
-        angle: 0, material: 'wall',
+        angle: 0, material: document.getElementById('collider-default-mat').value || 'normal',
       });
       selected = { type: 'colliders', index: stageData.colliders.length - 1 };
       multiSelected = [];
@@ -1224,9 +1948,28 @@ canvas.addEventListener('mousedown', (e) => {
     showProps(); draw();
     return;
   }
+
+  if (currentTool === 'oval') {
+    saveUndo();
+    if (stageData.ovalBounds) {
+      stageData.ovalBounds.cx = bx;
+      stageData.ovalBounds.cy = by;
+    } else {
+      stageData.ovalBounds = { cx: bx, cy: by, rx: 60, ry: 65, material: 'slide' };
+    }
+    selected = { type: 'ovalBounds', index: 0 };
+    multiSelected = [];
+    showProps(); draw();
+    return;
+  }
 });
 
 canvas.addEventListener('mouseup', () => {
+  if (isPanning) {
+    isPanning = false;
+    canvas.style.cursor = 'crosshair';
+    return;
+  }
   isDragging = false;
   isMultiDragging = false;
   dragLastBoard = null;
@@ -1242,7 +1985,16 @@ canvas.addEventListener('mouseup', () => {
   }
 });
 
-canvas.addEventListener('mouseleave', () => { isDragging = false; isMultiDragging = false; dragLastBoard = null; });
+canvas.addEventListener('mouseleave', () => { isDragging = false; isMultiDragging = false; isPanning = false; dragLastBoard = null; canvas.style.cursor = 'crosshair'; });
+
+// ── Zoom (wheel) ──
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const { cx, cy } = canvasFromEvent(e);
+  const delta = e.deltaY > 0 ? 0.9 : 1.1;
+  setZoom(zoomLevel * delta, cx, cy);
+}, { passive: false });
+canvas.addEventListener('auxclick', (e) => { if (e.button === 1) e.preventDefault(); });
 
 // ── Keyboard shortcuts ──
 document.addEventListener('keydown', (e) => {
@@ -1265,12 +2017,16 @@ document.addEventListener('keydown', (e) => {
     if (multiSelected.length > 1) deleteMultiSelected();
     else deleteSelected();
   }
-  const shortcuts = { v: 'select', r: 'rectselect', p: 'peg', o: 'pocket', w: 'wall', b: 'collider', l: 'launcher' };
+  if (e.code === 'Space' && !e.repeat) { spaceHeld = true; canvas.style.cursor = 'grab'; e.preventDefault(); }
+  const shortcuts = { v: 'select', r: 'rectselect', p: 'peg', o: 'pocket', w: 'wall', b: 'collider', l: 'launcher', g: 'oval' };
   if (shortcuts[e.key]) setTool(shortcuts[e.key]);
   if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
     e.preventDefault();
     duplicateSelected();
   }
+});
+document.addEventListener('keyup', (e) => {
+  if (e.code === 'Space') { spaceHeld = false; if (!isPanning) canvas.style.cursor = 'crosshair'; }
 });
 
 function duplicateSelected() {
@@ -1294,6 +2050,10 @@ function setTool(name) {
   wallStart = null; colliderStart = null;
   rectSelectStart = null; rectSelectEnd = null;
   document.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('active', b.dataset.tool === name));
+  document.getElementById('peg-defaults-group').style.display = name === 'peg' ? 'block' : 'none';
+  document.getElementById('pocket-kind-group').style.display = name === 'pocket' ? 'block' : 'none';
+  document.getElementById('wall-defaults-group').style.display = name === 'wall' ? 'block' : 'none';
+  document.getElementById('collider-defaults-group').style.display = name === 'collider' ? 'block' : 'none';
 }
 document.querySelectorAll('.tool-btn').forEach(btn => {
   btn.addEventListener('click', () => setTool(btn.dataset.tool));
@@ -1329,12 +2089,18 @@ function loadFile(file) {
   reader.onload = (e) => {
     try {
       const data = JSON.parse(e.target.result);
+      const matRename = { wall: 'normal', rail: 'slide', rubber: 'bounce', soft: 'absorb', glass: 'mirror' };
+      const migrateMat = (arr) => arr.forEach(o => { if (o.material && matRename[o.material]) o.material = matRename[o.material]; });
+      const walls = data.walls || [];
+      const colliders = data.colliders || [];
+      migrateMat(walls);
+      migrateMat(colliders);
       stageData = {
         ...newStage(), ...data,
         pegs: data.pegs || [],
         pockets: data.pockets || [],
-        walls: data.walls || [],
-        colliders: data.colliders || [],
+        walls,
+        colliders,
         launcher: data.launcher ? { angle: 90, ...data.launcher } : { x: 14, y: 40, angle: 90 },
         decorations: data.decorations || [],
       };
@@ -1344,6 +2110,8 @@ function loadFile(file) {
       selected = null; multiSelected = [];
       undoStack.length = 0;
       updateUndoInfo();
+      resetSim();
+      simBallCount = stageData.initialBalls || 100;
       showProps(); draw();
       setStatus(`Loaded: ${file.name}`);
     } catch (err) {
@@ -1355,6 +2123,7 @@ function loadFile(file) {
 
 document.getElementById('btn-export').addEventListener('click', () => {
   const output = { name: stageData.name, size: stageData.size };
+  if (stageData.initialBalls !== undefined) output.initialBalls = stageData.initialBalls;
   if (stageData.version !== undefined) output.version = stageData.version;
   if (stageData.metadata) output.metadata = stageData.metadata;
   output.pegs = stageData.pegs;
@@ -1406,23 +2175,24 @@ document.getElementById('bg-input').addEventListener('change', (e) => {
 });
 
 function loadBgImage(file) {
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    const img = new Image();
-    img.onload = () => {
-      bgImage = img;
-      bgScale = Math.max(CW / img.width, CH / img.height) / SCALE * 100;
-      bgOffsetX = 0; bgOffsetY = 0;
-      document.getElementById('bg-scale').value = Math.round(bgScale);
-      document.getElementById('bg-scale-val').textContent = Math.round(bgScale) + '%';
-      document.getElementById('bg-group').style.display = 'block';
-      document.getElementById('btn-bg-clear').style.display = 'block';
-      draw();
-      setStatus('Background loaded');
-    };
-    img.src = ev.target.result;
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    bgImage = img;
+    bgScale = Math.max(CW / img.width, CH / img.height) / SCALE * 100;
+    bgOffsetX = 0; bgOffsetY = 0;
+    document.getElementById('bg-scale').value = Math.round(bgScale);
+    document.getElementById('bg-scale-val').textContent = Math.round(bgScale) + '%';
+    document.getElementById('bg-group').style.display = 'block';
+    document.getElementById('btn-bg-clear').style.display = 'block';
+    draw();
+    setStatus('Background loaded');
   };
-  reader.readAsDataURL(file);
+  img.onerror = () => {
+    URL.revokeObjectURL(url);
+    setStatus('Image load failed');
+  };
+  img.src = url;
 }
 
 document.getElementById('btn-bg-clear').addEventListener('click', () => {
@@ -1484,6 +2254,18 @@ document.getElementById('ball-radius').addEventListener('input', (e) => {
   document.getElementById('ball-radius-val').textContent = ballRadius.toFixed(1);
   draw();
 });
+
+// ── Simulation events ──
+document.getElementById('btn-sim-launch').addEventListener('click', simLaunchBall);
+document.getElementById('btn-sim-reset').addEventListener('click', resetSim);
+document.getElementById('sim-power').addEventListener('input', (e) => {
+  document.getElementById('sim-power-val').textContent = parseFloat(e.target.value).toFixed(2);
+});
+
+// ── Zoom buttons ──
+document.getElementById('btn-zoom-in').addEventListener('click', () => { setZoom(zoomLevel * 1.25); draw(); });
+document.getElementById('btn-zoom-out').addEventListener('click', () => { setZoom(zoomLevel * 0.8); draw(); });
+document.getElementById('btn-zoom-reset').addEventListener('click', () => { zoomLevel = 1; panX = 0; panY = 0; applyZoom(); draw(); });
 
 // ── Initial draw ──
 draw();

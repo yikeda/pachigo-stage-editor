@@ -160,6 +160,7 @@ canvas { background: #1a1a1a; cursor: crosshair; transform-origin: 0 0; }
   </div>
   <button class="tool-btn" data-tool="launcher">Launcher <span class="shortcut">L</span></button>
   <button class="tool-btn" data-tool="oval">Oval Bounds <span class="shortcut">G</span></button>
+  <button class="tool-btn" data-tool="roulette">Roulette <span class="shortcut">T</span></button>
 
   <h3>Options</h3>
   <div id="grid-snap-group">
@@ -218,8 +219,23 @@ canvas { background: #1a1a1a; cursor: crosshair; transform-origin: 0 0; }
     </div>
     <div class="bg-row" style="margin-top:4px">
       <label>Power</label>
-      <input type="range" id="sim-power" min="0.2" max="10.0" step="0.01" value="0.56">
-      <span id="sim-power-val" style="font-size:10px;width:28px;text-align:right">0.56</span>
+      <input type="range" id="sim-power" min="0.0" max="10.0" step="0.01" value="3.0">
+      <span id="sim-power-val" style="font-size:10px;width:28px;text-align:right">3.00</span>
+    </div>
+    <div class="bg-row" style="margin-top:4px">
+      <label>Speed</label>
+      <input type="range" id="sim-speed" min="0.0" max="10.0" step="0.01" value="7.0" disabled>
+      <span id="sim-speed-val" style="font-size:10px;width:28px;text-align:right">7.00</span>
+    </div>
+    <div class="bg-row" style="margin-top:4px">
+      <label>Knee P</label>
+      <input type="range" id="sim-knee-power" min="0.5" max="9.5" step="0.1" value="3.0">
+      <span id="sim-knee-power-val" style="font-size:10px;width:28px;text-align:right">3.0</span>
+    </div>
+    <div class="bg-row" style="margin-top:4px">
+      <label>Knee S</label>
+      <input type="range" id="sim-knee-speed" min="0.5" max="9.5" step="0.1" value="7.0">
+      <span id="sim-knee-speed-val" style="font-size:10px;width:28px;text-align:right">7.0</span>
     </div>
     <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
       <input type="checkbox" id="chk-sim-auto">
@@ -257,6 +273,9 @@ canvas { background: #1a1a1a; cursor: crosshair; transform-origin: 0 0; }
   <h3>Properties</h3>
   <div id="props-content"><span style="color:#666">No selection</span></div>
   <div id="selection-info"></div>
+  <h3 style="margin-top:12px">Events</h3>
+  <div id="events-content" style="display:flex;flex-direction:column;gap:6px"></div>
+  <button id="btn-add-event" style="margin-top:6px">+ Add Event</button>
 </div>
 
 <div id="drop-overlay">Drop JSON file</div>
@@ -313,12 +332,20 @@ let simShotCount = 0;
 let simWinCount = 0;
 let simDrainCount = 0;
 let simBallCount = 100;
-let simOpenTulipIDs = new Set();
-let simTulipTimers = {};
+let simPocketOpen = [];
+let simPocketCloseTicks = [];
+let simPocketBallsRemaining = [];
+let simOnBallIn = [];
+let simOnRouletteWin = [];
+let simOnRouletteLose = [];
+let simRouletteDefs = [];
+let simRouletteStates = [];
+let simSpinCount = 0;
+let simJackpotCount = 0;
 
 const SIM_TUNING = {
   gravityY: -0.18,
-  maxSpeedX: 2.8,
+  maxSpeedX: 12.0,
   maxSpeedY: 12.0,
   pocketAssist: 0.18,
 };
@@ -360,11 +387,27 @@ function wallTangentDamping(material) {
 
 function simClamp(v, lo, hi) { return Math.min(Math.max(v, lo), hi); }
 
+function simLaunchSpeed(power) {
+  const clampedPower = simClamp(power, 0.0, 10.0);
+  const kneePower = parseFloat(document.getElementById('sim-knee-power').value);
+  const kneeSpeed = parseFloat(document.getElementById('sim-knee-speed').value);
+  if (clampedPower <= kneePower) return clampedPower / kneePower * kneeSpeed;
+  return kneeSpeed + (clampedPower - kneePower) / (10.0 - kneePower) * (10.0 - kneeSpeed);
+}
+
+function updateSimLaunchMapping() {
+  const power = parseFloat(document.getElementById('sim-power').value);
+  const speed = simLaunchSpeed(power);
+  document.getElementById('sim-power-val').textContent = power.toFixed(2);
+  document.getElementById('sim-speed').value = speed;
+  document.getElementById('sim-speed-val').textContent = speed.toFixed(2);
+}
+
 function simMakeBall(power) {
   const lx = stageData.launcher.x;
   const ly = stageData.launcher.y;
   const angle = (stageData.launcher.angle !== undefined ? stageData.launcher.angle : 90) * Math.PI / 180;
-  const speed = 1.0 + (power - 0.2) / 9.8 * 9.0;
+  const speed = simLaunchSpeed(power);
   return { x: lx, y: ly, vx: speed * Math.cos(angle), vy: speed * Math.sin(angle), radius: 2.4, frozen: false };
 }
 
@@ -378,9 +421,10 @@ function saveTrail(b) {
 function simLaunchBall() {
   if (simBallCount <= 0) return;
   const power = parseFloat(document.getElementById('sim-power').value);
+  if (power <= 0) return;
   const angleDeg = stageData.launcher.angle !== undefined ? stageData.launcher.angle : 90;
   const launchAngle = angleDeg * Math.PI / 180;
-  const speed = 1.0 + (power - 0.2) / 9.8 * 9.0;
+  const speed = simLaunchSpeed(power);
   const vx = speed * Math.cos(launchAngle);
   const vy = speed * Math.sin(launchAngle);
   const ball = {
@@ -400,7 +444,7 @@ function simLaunchBall() {
 }
 
 function simStepPhysics() {
-  simTickTulipTimers();
+  simTickEvents();
   const bounds = getPlayfieldBounds();
   const showTrail = document.getElementById('chk-sim-trail').checked;
 
@@ -448,36 +492,23 @@ function simStepPhysics() {
     }
 
     // Pockets
-    for (const p of stageData.pockets) {
-      const dx = b.x - p.x, dy = b.y - p.y;
-      const dist2 = dx * dx + dy * dy;
+    for (let pi = 0; pi < stageData.pockets.length; pi++) {
+      const p = stageData.pockets[pi];
 
-      if (p.kind === 'tulip') {
-        const isOpen = p.id && simOpenTulipIDs.has(p.id);
-        if (!isOpen) {
-          const rr = b.radius + p.innerRadius;
-          if (dist2 < rr * rr && dist2 > 0.0001) {
-            const len = Math.sqrt(dist2);
-            const nx = dx / len, ny = dy / len;
-            const dot = b.vx * nx + b.vy * ny;
-            if (dot < 0) {
-              b.vx -= 2 * dot * nx * 0.6;
-              b.vy -= 2 * dot * ny * 0.6;
-              b.x = p.x + nx * rr;
-              b.y = p.y + ny * rr;
-            }
-          }
-          continue;
-        }
+      if (!simPocketOpen[pi]) {
+        simCollideClosedPocket(b, p);
+        continue;
       }
 
+      const dx = b.x - p.x, dy = b.y - p.y;
+      const dist2 = dx * dx + dy * dy;
       simPocketAssist(b, p);
       if (dist2 < p.innerRadius * p.innerRadius) {
         const payout = p.payout !== undefined ? p.payout : (p.kind === 'drain' ? 0 : 3);
-        simBallCount += payout;
         if (p.kind === 'drain') simDrainCount++;
-        else simWinCount++;
-        if (p.kind === 'chucker' && p.lottery) simRunLottery(p.lottery);
+        else { simBallCount += payout; simWinCount++; }
+        simFireEvents(simOnBallIn[pi]);
+        simConsumeQuota(pi);
         b.frozen = true; saveTrail(b);
         b.x = stageData.launcher.x; b.y = stageData.launcher.y; b.vx = 0; b.vy = 0;
         break;
@@ -659,22 +690,195 @@ function simPocketAssist(b, pocket) {
   b.vy = simClamp(b.vy + (dy / dist) * gain, -SIM_TUNING.maxSpeedY, SIM_TUNING.maxSpeedY);
 }
 
-function simRunLottery(lottery) {
-  if (Math.random() >= lottery.winRate) return;
-  for (const tid of (lottery.opens || [])) {
-    simOpenTulipIDs.add(tid);
-    simTulipTimers[tid] = lottery.duration;
+// ── Event engine (mirrors Swift EventEngine) ──
+function pocketInitiallyOpen(p) {
+  return p.initiallyOpen !== undefined ? p.initiallyOpen : p.kind !== 'tulip';
+}
+
+function simCompileEvents() {
+  const pocketIndexByID = new Map();
+  stageData.pockets.forEach((p, i) => { if (p.id) pocketIndexByID.set(p.id, i); });
+  const rouletteIndexByID = new Map();
+  (stageData.roulettes || []).forEach((r, i) => { if (r.id) rouletteIndexByID.set(r.id, i); });
+
+  simPocketOpen = stageData.pockets.map(pocketInitiallyOpen);
+  simPocketCloseTicks = stageData.pockets.map(() => 0);
+  simPocketBallsRemaining = stageData.pockets.map(() => 0);
+  simOnBallIn = stageData.pockets.map(() => []);
+  simOnRouletteWin = (stageData.roulettes || []).map(() => []);
+  simOnRouletteLose = (stageData.roulettes || []).map(() => []);
+
+  simRouletteDefs = (stageData.roulettes || []).map(r => {
+    const digits = Math.max(r.digits || 3, 1);
+    const spinTicks = Math.max(r.spinDuration || 2.4, 0.1) * 120;
+    return {
+      x: r.x, y: r.y, width: r.width, height: r.height,
+      digits,
+      symbolCount: Math.max(r.symbolCount || 10, 2),
+      reelStopTicks: Array.from({ length: digits }, (_, reel) => Math.round(spinTicks * (reel + 1) / digits)),
+      winRate: r.winRate !== undefined ? r.winRate : 0.1,
+      winSymbol: Math.max(r.winSymbol !== undefined ? r.winSymbol : 7, 0),
+      holdMax: Math.max(r.holdMax || 4, 1),
+      resultTicks: Math.round((r.resultDuration !== undefined ? r.resultDuration : 1.0) * 120),
+    };
+  });
+  simRouletteStates = simRouletteDefs.map(def => ({
+    phase: 'idle', tick: 0, pending: 0, willWin: false,
+    displaySymbols: Array(def.digits).fill(0),
+    finalSymbols: Array(def.digits).fill(0),
+  }));
+
+  const resolveTargets = (targets) => (targets || []).map(id => pocketIndexByID.get(id)).filter(i => i !== undefined);
+
+  for (const ev of (stageData.events || [])) {
+    const actions = [];
+    for (const a of (ev.actions || [])) {
+      if (a.type === 'payout') actions.push({ type: 'payout', balls: a.balls || 0 });
+      else if (a.type === 'open') actions.push({
+        type: 'open', targets: resolveTargets(a.targets),
+        durationTicks: Math.round((a.duration || 0) * 120),
+        maxBalls: a.maxBalls || 0,
+      });
+      else if (a.type === 'close') actions.push({ type: 'close', targets: resolveTargets(a.targets) });
+      else if (a.type === 'spin') {
+        const ri = rouletteIndexByID.get(a.roulette);
+        if (ri !== undefined) actions.push({ type: 'spin', rouletteIndex: ri });
+      }
+    }
+    if (actions.length === 0) continue;
+    const compiled = { chance: ev.chance !== undefined ? ev.chance : 1.0, actions };
+    const t = ev.trigger || {};
+    if (t.type === 'ballIn') {
+      const pi = pocketIndexByID.get(t.pocket);
+      if (pi !== undefined) simOnBallIn[pi].push(compiled);
+    } else if (t.type === 'rouletteWin') {
+      const ri = rouletteIndexByID.get(t.roulette);
+      if (ri !== undefined) simOnRouletteWin[ri].push(compiled);
+    } else if (t.type === 'rouletteLose') {
+      const ri = rouletteIndexByID.get(t.roulette);
+      if (ri !== undefined) simOnRouletteLose[ri].push(compiled);
+    }
   }
 }
 
-function simTickTulipTimers() {
-  for (const tid of Object.keys(simTulipTimers)) {
-    simTulipTimers[tid] -= SIM_DT;
-    if (simTulipTimers[tid] <= 0) {
-      simOpenTulipIDs.delete(tid);
-      delete simTulipTimers[tid];
+function simFireEvents(events) {
+  for (const ev of events) {
+    if (ev.chance < 1.0 && Math.random() >= ev.chance) continue;
+    for (const a of ev.actions) simApplyAction(a);
+  }
+}
+
+function simApplyAction(a) {
+  if (a.type === 'payout') {
+    simBallCount += a.balls;
+  } else if (a.type === 'open') {
+    for (const t of a.targets) {
+      simPocketOpen[t] = true;
+      simPocketCloseTicks[t] = a.durationTicks;
+      simPocketBallsRemaining[t] = a.maxBalls;
+    }
+  } else if (a.type === 'close') {
+    for (const t of a.targets) {
+      simPocketOpen[t] = false;
+      simPocketCloseTicks[t] = 0;
+      simPocketBallsRemaining[t] = 0;
+    }
+  } else if (a.type === 'spin') {
+    const st = simRouletteStates[a.rouletteIndex];
+    st.pending = Math.min(st.pending + 1, simRouletteDefs[a.rouletteIndex].holdMax);
+    simSpinCount++;
+  }
+}
+
+function simConsumeQuota(pi) {
+  if (simPocketBallsRemaining[pi] <= 0) return;
+  simPocketBallsRemaining[pi]--;
+  if (simPocketBallsRemaining[pi] === 0) {
+    simPocketOpen[pi] = false;
+    simPocketCloseTicks[pi] = 0;
+  }
+}
+
+function simTickEvents() {
+  for (let i = 0; i < simPocketCloseTicks.length; i++) {
+    if (simPocketCloseTicks[i] <= 0) continue;
+    simPocketCloseTicks[i]--;
+    if (simPocketCloseTicks[i] === 0) {
+      simPocketOpen[i] = false;
+      simPocketBallsRemaining[i] = 0;
     }
   }
+  for (let i = 0; i < simRouletteStates.length; i++) {
+    const def = simRouletteDefs[i];
+    const st = simRouletteStates[i];
+    if (st.phase === 'idle') {
+      if (st.pending <= 0) continue;
+      st.pending--;
+      simStartSpin(st, def);
+    } else if (st.phase === 'spinning') {
+      st.tick++;
+      for (let reel = 0; reel < def.digits; reel++) {
+        if (st.tick < def.reelStopTicks[reel]) {
+          if ((st.tick & 3) === 0) st.displaySymbols[reel] = (st.displaySymbols[reel] + 1) % def.symbolCount;
+        } else {
+          st.displaySymbols[reel] = st.finalSymbols[reel];
+        }
+      }
+      if (st.tick >= def.reelStopTicks[def.digits - 1]) {
+        st.phase = 'result';
+        st.tick = 0;
+        if (st.willWin) simJackpotCount++;
+        simFireEvents(st.willWin ? simOnRouletteWin[i] : simOnRouletteLose[i]);
+      }
+    } else if (st.phase === 'result') {
+      st.tick++;
+      if (st.tick >= def.resultTicks) {
+        st.phase = 'idle';
+        st.tick = 0;
+      }
+    }
+  }
+}
+
+function simStartSpin(st, def) {
+  const winSymbol = def.winSymbol % def.symbolCount;
+  st.willWin = Math.random() < def.winRate;
+  if (st.willWin) {
+    st.finalSymbols = Array(def.digits).fill(winSymbol);
+  } else if (def.digits === 1) {
+    let s = Math.floor(Math.random() * def.symbolCount);
+    if (s === winSymbol) s = (s + 1) % def.symbolCount;
+    st.finalSymbols = [s];
+  } else {
+    do {
+      st.finalSymbols = Array.from({ length: def.digits }, () => Math.floor(Math.random() * def.symbolCount));
+    } while (st.finalSymbols.every(s => s === st.finalSymbols[0]));
+  }
+  st.phase = 'spinning';
+  st.tick = 0;
+}
+
+function simCollideClosedPocket(b, p) {
+  const dx = b.x - p.x, dy = b.y - p.y;
+  const rr = b.radius + p.innerRadius;
+  const dist2 = dx * dx + dy * dy;
+  if (dist2 >= rr * rr) return;
+  const len = Math.max(Math.sqrt(dist2), 0.0001);
+  const nx = dx / len, ny = dy / len;
+  const dot = b.vx * nx + b.vy * ny;
+  if (dot >= 0) return;
+  const bounce = pinRestitution('pocketRim');
+  const baseTang = pinTangentDamping('pocketRim');
+  const impactFactor = Math.min(-dot / 1.0, 1.0);
+  const tang = 1.0 - (1.0 - baseTang) * impactFactor;
+  const rx = b.vx - (1 + bounce) * dot * nx;
+  const ry = b.vy - (1 + bounce) * dot * ny;
+  const tx = -ny, ty = nx;
+  const tS = rx * tx + ry * ty, nS = rx * nx + ry * ny;
+  b.vx = simClamp(tx * tS * tang + nx * nS, -SIM_TUNING.maxSpeedX, SIM_TUNING.maxSpeedX);
+  b.vy = simClamp(ty * tS * tang + ny * nS, -SIM_TUNING.maxSpeedY, SIM_TUNING.maxSpeedY);
+  b.x = p.x + nx * (rr + 0.08);
+  b.y = p.y + ny * (rr + 0.08);
 }
 
 function getPlayfieldBounds() {
@@ -683,6 +887,7 @@ function getPlayfieldBounds() {
 
 function startSim() {
   if (simRunning) return;
+  simCompileEvents();
   simRunning = true;
   simLastTime = 0;
   simAccumulator = 0;
@@ -702,8 +907,9 @@ function resetSim() {
   simWinCount = 0;
   simDrainCount = 0;
   simBallCount = stageData.initialBalls || 100;
-  simOpenTulipIDs.clear();
-  simTulipTimers = {};
+  simSpinCount = 0;
+  simJackpotCount = 0;
+  simCompileEvents();
   simAutoTimer = 0;
   updateSimStats();
   draw();
@@ -738,10 +944,9 @@ function simLoop(timestamp) {
 }
 
 function updateSimStats() {
-  const active = simBalls.filter(b => !b.frozen).length;
-  const tulipInfo = simOpenTulipIDs.size > 0 ? `  Tulips: ${simOpenTulipIDs.size}` : '';
+  const rouletteInfo = simSpinCount > 0 ? `  Spin: ${simSpinCount}  JP: ${simJackpotCount}` : '';
   document.getElementById('sim-stats').textContent =
-    `Balls: ${simBallCount}  Shots: ${simShotCount}  Win: ${simWinCount}  Drain: ${simDrainCount}${tulipInfo}`;
+    `Balls: ${simBallCount}  Shots: ${simShotCount}  Win: ${simWinCount}  Drain: ${simDrainCount}${rouletteInfo}`;
 }
 let physBallPos = null; // { x, y } in board coords, null = not placed yet
 
@@ -803,6 +1008,8 @@ function saveUndo() {
     launcher: stageData.launcher,
     decorations: stageData.decorations,
     ovalBounds: stageData.ovalBounds || null,
+    events: stageData.events || [],
+    roulettes: stageData.roulettes || [],
   });
   if (undoStack.length > 0 && undoStack[undoStack.length - 1] === snapshot) return;
   undoStack.push(snapshot);
@@ -821,9 +1028,12 @@ function undo() {
   stageData.decorations = snapshot.decorations;
   if (snapshot.ovalBounds) stageData.ovalBounds = snapshot.ovalBounds;
   else delete stageData.ovalBounds;
+  stageData.events = snapshot.events || [];
+  stageData.roulettes = snapshot.roulettes || [];
   selected = null;
   multiSelected = [];
   showProps();
+  renderEvents();
   draw();
   updateUndoInfo();
   setStatus('Undo');
@@ -845,6 +1055,8 @@ function newStage() {
     colliders: [],
     launcher: { x: 14, y: 40, angle: 90 },
     decorations: [],
+    events: [],
+    roulettes: [],
   };
 }
 
@@ -952,15 +1164,16 @@ function draw() {
   stageData.pockets.forEach((p, i) => {
     const c = boardToCanvas(p.x, p.y);
     const sel = isSel('pockets', i);
-    const isTulip = p.kind === 'tulip';
-    const isOpen = isTulip && p.id && simOpenTulipIDs.has(p.id);
+    const simValid = simPocketOpen.length === stageData.pockets.length;
+    const isOpen = simRunning && simValid ? simPocketOpen[i] : pocketInitiallyOpen(p);
 
-    if (isTulip && !isOpen && simRunning) {
+    if (!isOpen) {
+      const col = pocketColor(p.kind);
       ctx.beginPath();
       ctx.arc(c.x, c.y, p.innerRadius * SCALE, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255,217,61,0.15)';
+      ctx.fillStyle = col + '0.15)';
       ctx.fill();
-      ctx.strokeStyle = sel ? '#ffff00' : 'rgba(255,217,61,0.5)';
+      ctx.strokeStyle = sel ? '#ffff00' : col + '0.5)';
       ctx.lineWidth = sel ? 2.5 : 1;
       ctx.stroke();
       ctx.fillStyle = '#aaa';
@@ -997,6 +1210,48 @@ function draw() {
       ctx.fillStyle = col + '0.8)';
       ctx.font = '8px sans-serif';
       ctx.fillText('+' + p.payout, c.x, c.y + p.innerRadius * SCALE + 10);
+    }
+  });
+
+  // Roulettes
+  (stageData.roulettes || []).forEach((r, i) => {
+    const c = boardToCanvas(r.x, r.y);
+    const sel = isSel('roulettes', i);
+    const hw = r.width * SCALE / 2, hh = r.height * SCALE / 2;
+    ctx.fillStyle = 'rgba(10,10,20,0.85)';
+    ctx.fillRect(c.x - hw, c.y - hh, hw * 2, hh * 2);
+    ctx.strokeStyle = sel ? '#ffff00' : '#f590f5';
+    ctx.lineWidth = sel ? 2.5 : 1.5;
+    ctx.strokeRect(c.x - hw, c.y - hh, hw * 2, hh * 2);
+
+    const st = simRouletteStates[i];
+    const digits = Math.max(r.digits || 3, 1);
+    const symbols = st ? st.displaySymbols : Array(digits).fill(r.winSymbol !== undefined ? r.winSymbol : 7);
+    const isWinResult = st && st.phase === 'result' && st.willWin;
+    ctx.font = `bold ${Math.max(10, r.height * SCALE * 0.55)}px monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const cellW = (hw * 2) / digits;
+    for (let d = 0; d < digits; d++) {
+      if (d > 0) {
+        ctx.strokeStyle = 'rgba(245,144,245,0.4)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(c.x - hw + d * cellW, c.y - hh + 2);
+        ctx.lineTo(c.x - hw + d * cellW, c.y + hh - 2);
+        ctx.stroke();
+      }
+      ctx.fillStyle = isWinResult ? (Math.floor(Date.now() / 250) % 2 ? '#ffee58' : '#ff5252')
+        : (st && st.phase === 'spinning' ? '#ff7043' : '#ffffff');
+      ctx.fillText(symbols[d] !== undefined ? symbols[d] : 0, c.x - hw + (d + 0.5) * cellW, c.y);
+    }
+    if (st && st.pending > 0) {
+      for (let dot = 0; dot < st.pending; dot++) {
+        ctx.beginPath();
+        ctx.arc(c.x - hw + 4 + dot * 8, c.y + hh + 6, 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffee58';
+        ctx.fill();
+      }
     }
   });
 
@@ -1427,6 +1682,10 @@ function hitTest(bx, by) {
     const dx = bx - p.x, dy = by - p.y;
     if (dx * dx + dy * dy < p.innerRadius * p.innerRadius + 9) return { type: 'pockets', index: i };
   }
+  for (let i = (stageData.roulettes || []).length - 1; i >= 0; i--) {
+    const r = stageData.roulettes[i];
+    if (Math.abs(bx - r.x) <= r.width / 2 + 2 && Math.abs(by - r.y) <= r.height / 2 + 2) return { type: 'roulettes', index: i };
+  }
   for (let i = stageData.colliders.length - 1; i >= 0; i--) {
     const c = stageData.colliders[i];
     if (c.type !== 'box') continue;
@@ -1477,6 +1736,9 @@ function elementsInRect(x1, y1, x2, y2) {
   });
   stageData.colliders.forEach((c, i) => {
     if (c.x >= minX && c.x <= maxX && c.y >= minY && c.y <= maxY) results.push({ type: 'colliders', index: i });
+  });
+  (stageData.roulettes || []).forEach((r, i) => {
+    if (r.x >= minX && r.x <= maxX && r.y >= minY && r.y <= maxY) results.push({ type: 'roulettes', index: i });
   });
   if (stageData.launcher) {
     const l = stageData.launcher;
@@ -1569,19 +1831,21 @@ function showProps() {
     html = propRow('x', obj.x) + propRow('y', obj.y)
       + propRow('innerRadius', obj.innerRadius) + propRow('assistRadius', obj.assistRadius)
       + propSelect('kind', obj.kind || 'win', ['win', 'drain', 'chucker', 'tulip'])
-      + propRow('payout', obj.payout !== undefined ? obj.payout : (obj.kind === 'drain' ? 0 : 3));
-    if (obj.kind === 'chucker' || obj.kind === 'tulip') {
-      html += propInput('id', obj.id || '');
-    }
-    if (obj.kind === 'chucker') {
-      const lot = obj.lottery || { winRate: 0.3, opens: [], duration: 5 };
-      html += '<div style="margin-top:6px;padding:6px;background:#0a1e3a;border-radius:4px;font-size:10px;color:#aaa">'
-        + '<div style="margin-bottom:4px;color:#6dd5ed;font-weight:bold">Lottery</div>'
-        + propRow('winRate', lot.winRate)
-        + propInput('opens', (lot.opens || []).join(','))
-        + propRow('duration', lot.duration)
-        + '</div>';
-    }
+      + propRow('payout', obj.payout !== undefined ? obj.payout : (obj.kind === 'drain' ? 0 : 3))
+      + propInput('id', obj.id || '')
+      + propCheck('initiallyOpen', pocketInitiallyOpen(obj))
+      + '<div style="font-size:10px;color:#666">抽選・開閉はEventsパネルで設定</div>';
+  } else if (selected.type === 'roulettes') {
+    html = propInput('id', obj.id || '')
+      + propRow('x', obj.x) + propRow('y', obj.y)
+      + propRow('width', obj.width) + propRow('height', obj.height)
+      + propRow('digits', obj.digits !== undefined ? obj.digits : 3)
+      + propRow('symbolCount', obj.symbolCount !== undefined ? obj.symbolCount : 10)
+      + propRow('spinDuration', obj.spinDuration !== undefined ? obj.spinDuration : 2.4)
+      + propRow('winRate', obj.winRate !== undefined ? obj.winRate : 0.1)
+      + propRow('winSymbol', obj.winSymbol !== undefined ? obj.winSymbol : 7)
+      + propRow('holdMax', obj.holdMax !== undefined ? obj.holdMax : 4)
+      + propRow('resultDuration', obj.resultDuration !== undefined ? obj.resultDuration : 1.0);
   } else if (selected.type === 'walls') {
     html = propRow('x1', obj.x1) + propRow('y1', obj.y1) + propRow('x2', obj.x2) + propRow('y2', obj.y2)
       + propInput('id', obj.id || '')
@@ -1630,6 +1894,9 @@ function propSelect(label, value, options) {
   const opts = options.map(o => `<option value="${o}" ${o === value ? 'selected' : ''}>${o}</option>`).join('');
   return `<div class="prop-row"><label>${label}</label><select data-key="${label}">${opts}</select></div>`;
 }
+function propCheck(label, checked) {
+  return `<div class="prop-row"><label>${label}</label><input type="checkbox" data-key="${label}" ${checked ? 'checked' : ''}></div>`;
+}
 
 function getSelectedObj() {
   if (!selected) return null;
@@ -1644,36 +1911,20 @@ function applyProps() {
   const isPocket = selected && selected.type === 'pockets';
   document.getElementById('props-content').querySelectorAll('[data-key]').forEach(el => {
     const key = el.dataset.key;
-    if (isPocket && obj.kind === 'chucker') {
-      if (key === 'opens') {
-        if (!obj.lottery) obj.lottery = { winRate: 0.3, opens: [], duration: 5 };
-        obj.lottery.opens = el.value.split(',').map(s => s.trim()).filter(Boolean);
-        return;
-      }
-      if (key === 'winRate') {
-        if (!obj.lottery) obj.lottery = { winRate: 0.3, opens: [], duration: 5 };
-        obj.lottery.winRate = parseFloat(el.value) || 0;
-        return;
-      }
-      if (key === 'duration') {
-        if (!obj.lottery) obj.lottery = { winRate: 0.3, opens: [], duration: 5 };
-        obj.lottery.duration = parseFloat(el.value) || 0;
-        return;
-      }
-    }
+    if (el.type === 'checkbox') { obj[key] = el.checked; return; }
     obj[key] = el.type === 'number' ? (parseFloat(el.value) || 0) : el.value;
   });
+  if (obj.id === '') delete obj.id;
   if (isPocket) {
     const prevKind = obj._prevKind;
     if (prevKind && prevKind !== obj.kind) {
       if ((obj.kind === 'chucker' || obj.kind === 'tulip') && !obj.id) obj.id = obj.kind + '_' + Date.now();
-      if (obj.kind === 'chucker' && !obj.lottery) obj.lottery = { winRate: 0.3, opens: [], duration: 5 };
-      if (obj.kind !== 'chucker') delete obj.lottery;
-      if (obj.kind !== 'chucker' && obj.kind !== 'tulip') delete obj.id;
+      delete obj.initiallyOpen;
       showProps();
     }
     delete obj._prevKind;
   }
+  renderEvents();
   draw();
 }
 
@@ -1684,7 +1935,129 @@ function deleteSelected() {
   stageData[selected.type].splice(selected.index, 1);
   selected = null;
   showProps();
+  renderEvents();
   draw();
+}
+
+// ── Events panel ──
+function eventSourceIDs(triggerType) {
+  if (triggerType === 'ballIn') return stageData.pockets.filter(p => p.id).map(p => p.id);
+  return (stageData.roulettes || []).map(r => r.id).filter(Boolean);
+}
+
+function renderEvents() {
+  const container = document.getElementById('events-content');
+  if (!stageData.events) stageData.events = [];
+  const events = stageData.events;
+  if (events.length === 0) {
+    container.innerHTML = '<span style="color:#666;font-size:11px">No events</span>';
+    return;
+  }
+
+  const selectHTML = (onchange, options, value, placeholder) => {
+    const opts = ['<option value=""' + (value ? '' : ' selected') + '>' + placeholder + '</option>']
+      .concat(options.map(o => `<option value="${o}" ${o === value ? 'selected' : ''}>${o}</option>`)).join('');
+    return `<select onchange="${onchange}" style="width:100%">${opts}</select>`;
+  };
+
+  container.innerHTML = events.map((ev, ei) => {
+    const t = ev.trigger || { type: 'ballIn' };
+    const sourceKey = t.type === 'ballIn' ? 'pocket' : 'roulette';
+    let html = `<div style="padding:6px;background:#0a1e3a;border-radius:4px;font-size:10px;display:flex;flex-direction:column;gap:4px">`;
+    html += `<div style="display:flex;gap:4px;align-items:center">`
+      + `<select onchange="evSetTrigger(${ei}, this.value)" style="flex:1">`
+      + ['ballIn', 'rouletteWin', 'rouletteLose'].map(o => `<option value="${o}" ${o === t.type ? 'selected' : ''}>${o}</option>`).join('')
+      + `</select>`
+      + `<button onclick="evDelete(${ei})" style="padding:1px 6px;background:#5a1a2a;border:1px solid #e94560;border-radius:3px;color:#e94560">×</button>`
+      + `</div>`;
+    html += selectHTML(`evSetSource(${ei}, this.value)`, eventSourceIDs(t.type), t[sourceKey], `-- ${sourceKey} --`);
+    html += `<div style="display:flex;gap:4px;align-items:center"><label style="color:#aaa">chance</label>`
+      + `<input type="number" step="0.05" min="0" max="1" value="${ev.chance !== undefined ? ev.chance : 1.0}" onchange="evSetChance(${ei}, this.value)" style="width:60px"></div>`;
+
+    (ev.actions || []).forEach((a, ai) => {
+      html += `<div style="padding:4px;background:#122a4d;border-radius:3px;display:flex;flex-direction:column;gap:3px">`;
+      html += `<div style="display:flex;gap:4px;align-items:center">`
+        + `<select onchange="evSetActionType(${ei}, ${ai}, this.value)" style="flex:1">`
+        + ['open', 'close', 'payout', 'spin'].map(o => `<option value="${o}" ${o === a.type ? 'selected' : ''}>${o}</option>`).join('')
+        + `</select>`
+        + `<button onclick="evDeleteAction(${ei}, ${ai})" style="padding:1px 6px;background:#5a1a2a;border:1px solid #e94560;border-radius:3px;color:#e94560">×</button>`
+        + `</div>`;
+      if (a.type === 'open' || a.type === 'close') {
+        html += `<input type="text" placeholder="targets (id,id)" value="${(a.targets || []).join(',')}" onchange="evSetActionField(${ei}, ${ai}, 'targets', this.value)">`;
+      }
+      if (a.type === 'open') {
+        html += `<div style="display:flex;gap:4px;align-items:center"><label style="color:#aaa">sec</label>`
+          + `<input type="number" step="0.5" value="${a.duration !== undefined ? a.duration : 0}" onchange="evSetActionField(${ei}, ${ai}, 'duration', this.value)" style="width:50px">`
+          + `<label style="color:#aaa">balls</label>`
+          + `<input type="number" step="1" value="${a.maxBalls !== undefined ? a.maxBalls : 0}" onchange="evSetActionField(${ei}, ${ai}, 'maxBalls', this.value)" style="width:44px"></div>`;
+      }
+      if (a.type === 'payout') {
+        html += `<div style="display:flex;gap:4px;align-items:center"><label style="color:#aaa">balls</label>`
+          + `<input type="number" step="1" value="${a.balls !== undefined ? a.balls : 0}" onchange="evSetActionField(${ei}, ${ai}, 'balls', this.value)" style="width:60px"></div>`;
+      }
+      if (a.type === 'spin') {
+        html += selectHTML(`evSetActionField(${ei}, ${ai}, 'roulette', this.value)`, eventSourceIDs('roulette'), a.roulette, '-- roulette --');
+      }
+      html += `</div>`;
+    });
+
+    html += `<button onclick="evAddAction(${ei})" style="padding:2px 6px;font-size:10px">+ Action</button>`;
+    html += `</div>`;
+    return html;
+  }).join('');
+}
+
+function addEvent() {
+  saveUndo();
+  if (!stageData.events) stageData.events = [];
+  stageData.events.push({ trigger: { type: 'ballIn' }, actions: [] });
+  renderEvents();
+}
+
+function evDelete(ei) { saveUndo(); stageData.events.splice(ei, 1); renderEvents(); }
+function evSetTrigger(ei, value) {
+  saveUndo();
+  const t = stageData.events[ei].trigger;
+  t.type = value;
+  delete t.pocket;
+  delete t.roulette;
+  renderEvents();
+}
+function evSetSource(ei, value) {
+  saveUndo();
+  const t = stageData.events[ei].trigger;
+  if (t.type === 'ballIn') t.pocket = value || undefined;
+  else t.roulette = value || undefined;
+}
+function evSetChance(ei, value) {
+  saveUndo();
+  const v = parseFloat(value);
+  if (isNaN(v) || v >= 1.0) delete stageData.events[ei].chance;
+  else stageData.events[ei].chance = Math.max(v, 0);
+}
+function evAddAction(ei) {
+  saveUndo();
+  stageData.events[ei].actions.push({ type: 'open', targets: [] });
+  renderEvents();
+}
+function evDeleteAction(ei, ai) { saveUndo(); stageData.events[ei].actions.splice(ai, 1); renderEvents(); }
+function evSetActionType(ei, ai, value) {
+  saveUndo();
+  stageData.events[ei].actions[ai] = value === 'open' || value === 'close'
+    ? { type: value, targets: [] }
+    : (value === 'payout' ? { type: value, balls: 0 } : { type: value });
+  renderEvents();
+}
+function evSetActionField(ei, ai, field, value) {
+  saveUndo();
+  const a = stageData.events[ei].actions[ai];
+  if (field === 'targets') a.targets = value.split(',').map(s => s.trim()).filter(Boolean);
+  else if (field === 'roulette') a.roulette = value || undefined;
+  else {
+    const v = parseFloat(value) || 0;
+    if (v === 0 && (field === 'duration' || field === 'maxBalls')) delete a[field];
+    else a[field] = v;
+  }
 }
 
 function deleteMultiSelected() {
@@ -1702,6 +2075,7 @@ function deleteMultiSelected() {
   multiSelected = [];
   selected = null;
   showProps();
+  renderEvents();
   draw();
   setStatus('Deleted selected items');
 }
@@ -1894,7 +2268,7 @@ canvas.addEventListener('mousedown', (e) => {
     const newPocket = { x: bx, y: by, innerRadius: 5.5, assistRadius: 11, kind: pKind };
     if (pKind === 'chucker' || pKind === 'tulip') newPocket.id = pKind + '_' + Date.now();
     if (pKind === 'win') newPocket.payout = 3;
-    else if (pKind === 'chucker') { newPocket.payout = 8; newPocket.lottery = { winRate: 0.3, opens: [], duration: 5 }; }
+    else if (pKind === 'chucker') newPocket.payout = 8;
     else if (pKind === 'tulip') newPocket.payout = 5;
     else newPocket.payout = 0;
     stageData.pockets.push(newPocket);
@@ -1962,6 +2336,21 @@ canvas.addEventListener('mousedown', (e) => {
     showProps(); draw();
     return;
   }
+
+  if (currentTool === 'roulette') {
+    saveUndo();
+    if (!stageData.roulettes) stageData.roulettes = [];
+    stageData.roulettes.push({
+      id: 'roulette_' + Date.now(),
+      x: snap(bx), y: snap(by), width: 30, height: 12,
+      digits: 3, symbolCount: 10, spinDuration: 2.4,
+      winRate: 0.1, winSymbol: 7, holdMax: 4, resultDuration: 1.0,
+    });
+    selected = { type: 'roulettes', index: stageData.roulettes.length - 1 };
+    multiSelected = [];
+    showProps(); renderEvents(); draw();
+    return;
+  }
 });
 
 canvas.addEventListener('mouseup', () => {
@@ -2018,7 +2407,7 @@ document.addEventListener('keydown', (e) => {
     else deleteSelected();
   }
   if (e.code === 'Space' && !e.repeat) { spaceHeld = true; canvas.style.cursor = 'grab'; e.preventDefault(); }
-  const shortcuts = { v: 'select', r: 'rectselect', p: 'peg', o: 'pocket', w: 'wall', b: 'collider', l: 'launcher', g: 'oval' };
+  const shortcuts = { v: 'select', r: 'rectselect', p: 'peg', o: 'pocket', w: 'wall', b: 'collider', l: 'launcher', g: 'oval', t: 'roulette' };
   if (shortcuts[e.key]) setTool(shortcuts[e.key]);
   if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
     e.preventDefault();
@@ -2095,14 +2484,27 @@ function loadFile(file) {
       const colliders = data.colliders || [];
       migrateMat(walls);
       migrateMat(colliders);
+      const pockets = data.pockets || [];
+      const events = data.events || [];
+      for (const p of pockets) {
+        if (!p.lottery) continue;
+        events.push({
+          trigger: { type: 'ballIn', pocket: p.id },
+          chance: p.lottery.winRate,
+          actions: [{ type: 'open', targets: p.lottery.opens || [], duration: p.lottery.duration }],
+        });
+        delete p.lottery;
+      }
       stageData = {
         ...newStage(), ...data,
         pegs: data.pegs || [],
-        pockets: data.pockets || [],
+        pockets,
         walls,
         colliders,
         launcher: data.launcher ? { angle: 90, ...data.launcher } : { x: 14, y: 40, angle: 90 },
         decorations: data.decorations || [],
+        events,
+        roulettes: data.roulettes || [],
       };
       for (const k of Object.keys(data)) {
         if (!(k in stageData)) stageData[k] = data[k];
@@ -2112,7 +2514,7 @@ function loadFile(file) {
       updateUndoInfo();
       resetSim();
       simBallCount = stageData.initialBalls || 100;
-      showProps(); draw();
+      showProps(); renderEvents(); draw();
       setStatus(`Loaded: ${file.name}`);
     } catch (err) {
       setStatus(`Error: ${err.message}`);
@@ -2132,7 +2534,10 @@ document.getElementById('btn-export').addEventListener('click', () => {
   if (stageData.colliders.length > 0) output.colliders = stageData.colliders;
   output.launcher = stageData.launcher;
   if (stageData.decorations && stageData.decorations.length > 0) output.decorations = stageData.decorations;
+  if ((stageData.roulettes || []).length > 0) output.roulettes = stageData.roulettes;
+  if ((stageData.events || []).length > 0) output.events = stageData.events;
   for (const k of Object.keys(stageData)) {
+    if (k === 'events' || k === 'roulettes') continue;
     if (!(k in output)) output[k] = stageData[k];
   }
   const json = JSON.stringify(output, null, 2) + '\n';
@@ -2258,8 +2663,14 @@ document.getElementById('ball-radius').addEventListener('input', (e) => {
 // ── Simulation events ──
 document.getElementById('btn-sim-launch').addEventListener('click', simLaunchBall);
 document.getElementById('btn-sim-reset').addEventListener('click', resetSim);
-document.getElementById('sim-power').addEventListener('input', (e) => {
-  document.getElementById('sim-power-val').textContent = parseFloat(e.target.value).toFixed(2);
+document.getElementById('sim-power').addEventListener('input', updateSimLaunchMapping);
+document.getElementById('sim-knee-power').addEventListener('input', (e) => {
+  document.getElementById('sim-knee-power-val').textContent = parseFloat(e.target.value).toFixed(1);
+  updateSimLaunchMapping();
+});
+document.getElementById('sim-knee-speed').addEventListener('input', (e) => {
+  document.getElementById('sim-knee-speed-val').textContent = parseFloat(e.target.value).toFixed(1);
+  updateSimLaunchMapping();
 });
 
 // ── Zoom buttons ──
@@ -2267,7 +2678,12 @@ document.getElementById('btn-zoom-in').addEventListener('click', () => { setZoom
 document.getElementById('btn-zoom-out').addEventListener('click', () => { setZoom(zoomLevel * 0.8); draw(); });
 document.getElementById('btn-zoom-reset').addEventListener('click', () => { zoomLevel = 1; panX = 0; panY = 0; applyZoom(); draw(); });
 
+// ── Events panel setup ──
+document.getElementById('btn-add-event').addEventListener('click', addEvent);
+
 // ── Initial draw ──
+updateSimLaunchMapping();
+renderEvents();
 draw();
 </script>
 </body>

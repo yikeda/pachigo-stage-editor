@@ -124,6 +124,11 @@ canvas { background: #1a1a1a; cursor: crosshair; transform-origin: 0 0; }
         <option value="steel">steel</option>
       </select>
     </div>
+    <div style="display:flex;align-items:center;gap:4px;margin-top:3px">
+      <input type="checkbox" id="chk-peg-gap">
+      <label for="chk-peg-gap" style="color:#aaa">Ball Gap</label>
+      <input type="number" id="peg-gap-value" value="4.8" step="0.1" min="0" style="width:44px;padding:2px 4px;background:#0f3460;border:1px solid #1a4a7a;border-radius:3px;color:#e0e0e0;font-size:10px">
+    </div>
   </div>
   <button class="tool-btn" data-tool="pocket">Pocket <span class="shortcut">O</span></button>
   <div id="pocket-kind-group" style="display:none;margin-left:8px;margin-top:2px">
@@ -1060,6 +1065,105 @@ function newStage() {
   };
 }
 
+// ── Peg gap enforcement ──
+function pegGapFeasible(px, py, r, gap) {
+  for (const p of stageData.pegs) {
+    const minDist = r + p.r + gap;
+    const dx = px - p.x, dy = py - p.y;
+    if (dx * dx + dy * dy < minDist * minDist - 0.0001) return false;
+  }
+  return true;
+}
+
+function enforcePegGap(x, y, r) {
+  if (!document.getElementById('chk-peg-gap').checked) return { x, y };
+  const gap = parseFloat(document.getElementById('peg-gap-value').value) || 4.8;
+  if (pegGapFeasible(x, y, r, gap)) return { x, y };
+
+  // 単一制約なら反復押し出しで解決
+  let px = x, py = y;
+  for (let iter = 0; iter < 12; iter++) {
+    let moved = false;
+    for (const p of stageData.pegs) {
+      const minDist = r + p.r + gap;
+      const dx = px - p.x, dy = py - p.y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 >= minDist * minDist) continue;
+      const d = Math.sqrt(d2);
+      const nx = d < 0.001 ? 0 : dx / d;
+      const ny = d < 0.001 ? 1 : dy / d;
+      px = p.x + nx * minDist;
+      py = p.y + ny * minDist;
+      moved = true;
+    }
+    if (!moved) break;
+  }
+  if (pegGapFeasible(px, py, r, gap)) {
+    return { x: Math.round(px * 100) / 100, y: Math.round(py * 100) / 100 };
+  }
+
+  // 押し出しが振動する密集地帯はクリック位置から最寄りの可行点を探索
+  for (let rad = 0.5; rad <= 24; rad += 0.5) {
+    const steps = Math.max(8, Math.ceil(rad * 10));
+    for (let s = 0; s < steps; s++) {
+      const a = (s / steps) * Math.PI * 2;
+      const cx = x + Math.cos(a) * rad;
+      const cy = y + Math.sin(a) * rad;
+      if (pegGapFeasible(cx, cy, r, gap)) {
+        return { x: Math.round(cx * 100) / 100, y: Math.round(cy * 100) / 100 };
+      }
+    }
+  }
+  return { x, y };
+}
+
+// ── Copy & Paste ──
+let clipboardItems = [];
+
+function copySelection() {
+  const sels = multiSelected.length > 0 ? multiSelected : (selected ? [selected] : []);
+  const items = [];
+  for (const s of sels) {
+    if (s.type === 'launcher' || s.type === 'ovalBounds') continue;
+    const obj = stageData[s.type]?.[s.index];
+    if (obj) items.push({ type: s.type, obj: JSON.parse(JSON.stringify(obj)) });
+  }
+  if (items.length === 0) { setStatus('Nothing to copy'); return; }
+  clipboardItems = items;
+  setStatus(`Copied ${items.length} item(s)`);
+}
+
+function pasteClipboard() {
+  if (clipboardItems.length === 0) { setStatus('Clipboard empty'); return; }
+  saveUndo();
+  let sx = 0, sy = 0, n = 0;
+  for (const it of clipboardItems) {
+    const o = it.obj;
+    if ('x1' in o) { sx += (o.x1 + o.x2) / 2; sy += (o.y1 + o.y2) / 2; n++; }
+    else if ('x' in o) { sx += o.x; sy += o.y; n++; }
+  }
+  const dx = mouseBoard.x - (n ? sx / n : 0);
+  const dy = mouseBoard.y - (n ? sy / n : 0);
+  const pasted = [];
+  for (const it of clipboardItems) {
+    const clone = JSON.parse(JSON.stringify(it.obj));
+    if ('x1' in clone) {
+      clone.x1 = snap(clone.x1 + dx); clone.y1 = snap(clone.y1 + dy);
+      clone.x2 = snap(clone.x2 + dx); clone.y2 = snap(clone.y2 + dy);
+    } else {
+      clone.x = snap(clone.x + dx); clone.y = snap(clone.y + dy);
+    }
+    if (clone.id) clone.id = clone.id + '_c';
+    if (!stageData[it.type]) stageData[it.type] = [];
+    stageData[it.type].push(clone);
+    pasted.push({ type: it.type, index: stageData[it.type].length - 1 });
+  }
+  multiSelected = pasted.length > 1 ? pasted : [];
+  selected = pasted.length === 1 ? pasted[0] : null;
+  showProps(); renderEvents(); draw();
+  setStatus(`Pasted ${pasted.length} item(s)`);
+}
+
 // ── Mirror axis values ──
 function getMirrorCX() { return parseFloat(document.getElementById('mirror-cx').value) || 75; }
 function getMirrorCY() { return parseFloat(document.getElementById('mirror-cy').value) || 80; }
@@ -1303,6 +1407,32 @@ function draw() {
     ctx.strokeStyle = sel ? '#ffff00' : '#e94560';
     ctx.lineWidth = 2;
     ctx.stroke();
+  }
+
+  // Peg placement preview (ball-gap mode)
+  if (currentTool === 'peg' && document.getElementById('chk-peg-gap').checked) {
+    const defR = parseFloat(document.getElementById('peg-default-r').value) || 1.5;
+    const pos = enforcePegGap(mouseBoard.x, mouseBoard.y, defR);
+    const gc = boardToCanvas(pos.x, pos.y);
+    const adjusted = Math.abs(pos.x - mouseBoard.x) > 0.01 || Math.abs(pos.y - mouseBoard.y) > 0.01;
+    if (adjusted) {
+      const mc = boardToCanvas(mouseBoard.x, mouseBoard.y);
+      ctx.beginPath();
+      ctx.moveTo(mc.x, mc.y);
+      ctx.lineTo(gc.x, gc.y);
+      ctx.strokeStyle = 'rgba(255,217,61,0.5)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.beginPath();
+    ctx.arc(gc.x, gc.y, Math.max(defR * SCALE, 2), 0, Math.PI * 2);
+    ctx.strokeStyle = adjusted ? '#ffd93d' : 'rgba(255,255,255,0.6)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 3]);
+    ctx.stroke();
+    ctx.setLineDash([]);
   }
 
   // Wall-in-progress preview
@@ -2202,6 +2332,7 @@ canvas.addEventListener('mousemove', (e) => {
 
   if (currentTool === 'wall' && wallStart) draw();
   if (currentTool === 'collider' && colliderStart) draw();
+  if (currentTool === 'peg' && document.getElementById('chk-peg-gap').checked) draw();
   if (document.getElementById('chk-probe').checked || document.getElementById('chk-probe-phys').checked) draw();
 });
 
@@ -2255,7 +2386,8 @@ canvas.addEventListener('mousedown', (e) => {
     saveUndo();
     const defR = parseFloat(document.getElementById('peg-default-r').value) || 1.5;
     const defMat = document.getElementById('peg-default-mat').value || 'pin';
-    stageData.pegs.push({ x: bx, y: by, r: defR, material: defMat });
+    const pos = enforcePegGap(bx, by, defR);
+    stageData.pegs.push({ x: pos.x, y: pos.y, r: defR, material: defMat });
     selected = { type: 'pegs', index: stageData.pegs.length - 1 };
     multiSelected = [];
     showProps(); draw();
@@ -2412,6 +2544,14 @@ document.addEventListener('keydown', (e) => {
   if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
     e.preventDefault();
     duplicateSelected();
+  }
+  if ((e.metaKey || e.ctrlKey) && e.key === 'c') {
+    e.preventDefault();
+    copySelection();
+  }
+  if ((e.metaKey || e.ctrlKey) && e.key === 'v') {
+    e.preventDefault();
+    pasteClipboard();
   }
 });
 document.addEventListener('keyup', (e) => {

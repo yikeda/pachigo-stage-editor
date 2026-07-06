@@ -255,6 +255,39 @@ canvas { background: #1a1a1a; cursor: crosshair; transform-origin: 0 0; }
     <div id="sim-stats" style="font-size:10px;color:#888;margin-top:4px"></div>
   </div>
 
+  <h3>Analyze</h3>
+  <div id="analyze-group" style="display:flex;flex-direction:column;gap:4px;font-size:10px">
+    <div style="display:flex;align-items:center;gap:3px">
+      <label style="color:#aaa;width:34px">Power</label>
+      <input type="number" id="an-pmin" value="0.5" step="0.25" min="0" max="10" style="width:40px">
+      <span style="color:#666">〜</span>
+      <input type="number" id="an-pmax" value="10" step="0.25" min="0" max="10" style="width:40px">
+      <span style="color:#666">step</span>
+      <input type="number" id="an-pstep" value="0.25" step="0.05" min="0.05" style="width:40px">
+    </div>
+    <div style="display:flex;align-items:center;gap:3px">
+      <label style="color:#aaa;width:34px">Shots</label>
+      <input type="number" id="an-shots" value="100" min="10" step="10" style="width:48px">
+      <label style="color:#aaa">Seed</label>
+      <input type="text" id="an-seed" placeholder="rand" style="width:44px">
+    </div>
+    <div style="display:flex;align-items:center;gap:3px">
+      <label style="color:#aaa;width:34px">Jitter</label>
+      <input type="number" id="an-jspeed" value="0.5" step="0.1" min="0" style="width:40px"><span style="color:#666">%</span>
+      <input type="number" id="an-jangle" value="0.3" step="0.1" min="0" style="width:40px"><span style="color:#666">°</span>
+    </div>
+    <button class="file-btn" id="btn-analyze" style="background:#1a4a7a;border-color:#2a6aaa">Run Sweep</button>
+    <div id="an-progress" style="display:none">
+      <div style="background:#0a1428;border-radius:3px;height:8px;overflow:hidden">
+        <div id="an-progress-bar" style="background:#33ccff;height:100%;width:0%"></div>
+      </div>
+      <span id="an-progress-text" style="color:#888"></span>
+    </div>
+    <canvas id="analyze-chart" width="186" height="120" style="display:none;background:#0a1428;border-radius:4px;cursor:crosshair"></canvas>
+    <div id="an-scorecard" style="color:#ccc;line-height:1.5"></div>
+    <div id="an-detail" style="color:#aaa;line-height:1.4"></div>
+  </div>
+
   <h3>Mirror</h3>
   <div id="mirror-group">
     <button id="btn-mirror-lr">Left/Right</button>
@@ -392,12 +425,31 @@ function wallTangentDamping(material) {
 
 function simClamp(v, lo, hi) { return Math.min(Math.max(v, lo), hi); }
 
-function simLaunchSpeed(power) {
+// 乱数の間接化（batch解析時はシード付きRNGへ差し替え）
+let simRandom = Math.random;
+
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function launchSpeedFor(power, kneePower, kneeSpeed) {
   const clampedPower = simClamp(power, 0.0, 10.0);
-  const kneePower = parseFloat(document.getElementById('sim-knee-power').value);
-  const kneeSpeed = parseFloat(document.getElementById('sim-knee-speed').value);
   if (clampedPower <= kneePower) return clampedPower / kneePower * kneeSpeed;
   return kneeSpeed + (clampedPower - kneePower) / (10.0 - kneePower) * (10.0 - kneeSpeed);
+}
+
+function simLaunchSpeed(power) {
+  return launchSpeedFor(
+    power,
+    parseFloat(document.getElementById('sim-knee-power').value),
+    parseFloat(document.getElementById('sim-knee-speed').value)
+  );
 }
 
 function updateSimLaunchMapping() {
@@ -435,6 +487,7 @@ function simLaunchBall() {
   const ball = {
     x: stageData.launcher.x, y: stageData.launcher.y,
     vx, vy, radius: 2.4, frozen: false, trail: [[]],
+    stuckAnchorX: stageData.launcher.x, stuckAnchorY: stageData.launcher.y, stuckTicks: 0,
   };
   if (simBalls.length >= 5) {
     const frozenIdx = simBalls.findIndex(b => b.frozen);
@@ -448,10 +501,13 @@ function simLaunchBall() {
   if (!simRunning) startSim();
 }
 
+let simHeadless = false;
+let simLastCapture = null;
+
 function simStepPhysics() {
   simTickEvents();
   const bounds = getPlayfieldBounds();
-  const showTrail = document.getElementById('chk-sim-trail').checked;
+  const showTrail = !simHeadless && document.getElementById('chk-sim-trail').checked;
 
   for (let i = 0; i < simBalls.length; i++) {
     const b = simBalls[i];
@@ -474,7 +530,7 @@ function simStepPhysics() {
     // Bounds collision
     if (b.x - b.radius < bounds.left) { b.x = bounds.left + b.radius; b.vx = Math.abs(b.vx) * 0.68; }
     if (b.x + b.radius > bounds.right) { b.x = bounds.right - b.radius; b.vx = -Math.abs(b.vx) * 0.68; }
-    if (b.y - b.radius < bounds.bottom) { simDrainCount++; b.frozen = true; saveTrail(b); b.x = stageData.launcher.x; b.y = stageData.launcher.y; b.vx = 0; b.vy = 0; continue; }
+    if (b.y - b.radius < bounds.bottom) { simDrainCount++; simLastCapture = { kind: 'boundsDrain' }; b.frozen = true; saveTrail(b); b.x = stageData.launcher.x; b.y = stageData.launcher.y; b.vx = 0; b.vy = 0; continue; }
     if (b.y + b.radius > bounds.top) { b.y = bounds.top - b.radius; b.vy = -Math.abs(b.vy) * 0.68; }
 
     // Oval bounds
@@ -501,7 +557,6 @@ function simStepPhysics() {
       const p = stageData.pockets[pi];
 
       if (!simPocketOpen[pi]) {
-        simCollideClosedPocket(b, p);
         continue;
       }
 
@@ -512,6 +567,7 @@ function simStepPhysics() {
         const payout = p.payout !== undefined ? p.payout : (p.kind === 'drain' ? 0 : 3);
         if (p.kind === 'drain') simDrainCount++;
         else { simBallCount += payout; simWinCount++; }
+        simLastCapture = { pocketIndex: pi, id: p.id, kind: p.kind };
         simFireEvents(simOnBallIn[pi]);
         simConsumeQuota(pi);
         b.frozen = true; saveTrail(b);
@@ -519,7 +575,30 @@ function simStepPhysics() {
         break;
       }
     }
+
+    if (!b.frozen) simDrainBallIfStuck(b);
   }
+}
+
+function simDrainBallIfStuck(b) {
+  const dx = b.x - b.stuckAnchorX, dy = b.y - b.stuckAnchorY;
+  if (dx * dx + dy * dy > 1.0) {
+    b.stuckAnchorX = b.x;
+    b.stuckAnchorY = b.y;
+    b.stuckTicks = 0;
+    return;
+  }
+
+  b.stuckTicks++;
+  if (b.stuckTicks < 5 * 120) return;
+
+  simDrainCount++;
+  b.frozen = true;
+  saveTrail(b);
+  b.x = stageData.launcher.x;
+  b.y = stageData.launcher.y;
+  b.vx = 0;
+  b.vy = 0;
 }
 
 function simCollidePeg(b, pin) {
@@ -768,7 +847,7 @@ function simCompileEvents() {
 
 function simFireEvents(events) {
   for (const ev of events) {
-    if (ev.chance < 1.0 && Math.random() >= ev.chance) continue;
+    if (ev.chance < 1.0 && simRandom() >= ev.chance) continue;
     for (const a of ev.actions) simApplyAction(a);
   }
 }
@@ -847,43 +926,20 @@ function simTickEvents() {
 
 function simStartSpin(st, def) {
   const winSymbol = def.winSymbol % def.symbolCount;
-  st.willWin = Math.random() < def.winRate;
+  st.willWin = simRandom() < def.winRate;
   if (st.willWin) {
     st.finalSymbols = Array(def.digits).fill(winSymbol);
   } else if (def.digits === 1) {
-    let s = Math.floor(Math.random() * def.symbolCount);
+    let s = Math.floor(simRandom() * def.symbolCount);
     if (s === winSymbol) s = (s + 1) % def.symbolCount;
     st.finalSymbols = [s];
   } else {
     do {
-      st.finalSymbols = Array.from({ length: def.digits }, () => Math.floor(Math.random() * def.symbolCount));
+      st.finalSymbols = Array.from({ length: def.digits }, () => Math.floor(simRandom() * def.symbolCount));
     } while (st.finalSymbols.every(s => s === st.finalSymbols[0]));
   }
   st.phase = 'spinning';
   st.tick = 0;
-}
-
-function simCollideClosedPocket(b, p) {
-  const dx = b.x - p.x, dy = b.y - p.y;
-  const rr = b.radius + p.innerRadius;
-  const dist2 = dx * dx + dy * dy;
-  if (dist2 >= rr * rr) return;
-  const len = Math.max(Math.sqrt(dist2), 0.0001);
-  const nx = dx / len, ny = dy / len;
-  const dot = b.vx * nx + b.vy * ny;
-  if (dot >= 0) return;
-  const bounce = pinRestitution('pocketRim');
-  const baseTang = pinTangentDamping('pocketRim');
-  const impactFactor = Math.min(-dot / 1.0, 1.0);
-  const tang = 1.0 - (1.0 - baseTang) * impactFactor;
-  const rx = b.vx - (1 + bounce) * dot * nx;
-  const ry = b.vy - (1 + bounce) * dot * ny;
-  const tx = -ny, ty = nx;
-  const tS = rx * tx + ry * ty, nS = rx * nx + ry * ny;
-  b.vx = simClamp(tx * tS * tang + nx * nS, -SIM_TUNING.maxSpeedX, SIM_TUNING.maxSpeedX);
-  b.vy = simClamp(ty * tS * tang + ny * nS, -SIM_TUNING.maxSpeedY, SIM_TUNING.maxSpeedY);
-  b.x = p.x + nx * (rr + 0.08);
-  b.y = p.y + ny * (rr + 0.08);
 }
 
 function getPlayfieldBounds() {
@@ -952,6 +1008,268 @@ function updateSimStats() {
   const rouletteInfo = simSpinCount > 0 ? `  Spin: ${simSpinCount}  JP: ${simJackpotCount}` : '';
   document.getElementById('sim-stats').textContent =
     `Balls: ${simBallCount}  Shots: ${simShotCount}  Win: ${simWinCount}  Drain: ${simDrainCount}${rouletteInfo}`;
+}
+
+// ── Analyze: Powerスイープ解析 ──
+const ANALYZE_MAX_TICKS = 2400;
+const ANALYZE_HOT_EV = 1.2;
+const ANALYZE_DEAD_EV = 0.5;
+let analyzeRun = null;
+let analyzeResults = null;
+let analyzeSelectedBin = -1;
+
+function pocketPayoutOf(pi) {
+  const p = stageData.pockets[pi];
+  return p.payout !== undefined ? p.payout : (p.kind === 'drain' ? 0 : 3);
+}
+
+// 単発では測れない大当たりループの期待値を解析的に推定（maxBalls×payoutは上限値）
+function analyzeComputeBonusEV() {
+  const jackpotEV = simRouletteDefs.map((def, ri) => {
+    let ev = 0;
+    for (const e of simOnRouletteWin[ri]) {
+      let v = 0;
+      for (const a of e.actions) {
+        if (a.type === 'payout') v += a.balls;
+        else if (a.type === 'open' && a.maxBalls > 0) {
+          for (const t of a.targets) v += a.maxBalls * pocketPayoutOf(t);
+        }
+      }
+      ev += e.chance * v;
+    }
+    return ev;
+  });
+  return stageData.pockets.map((p, pi) => {
+    let ev = 0;
+    for (const e of simOnBallIn[pi]) {
+      for (const a of e.actions) {
+        if (a.type === 'spin') {
+          ev += e.chance * simRouletteDefs[a.rouletteIndex].winRate * jackpotEV[a.rouletteIndex];
+        }
+      }
+    }
+    return ev;
+  });
+}
+
+function analyzeResetShotState() {
+  simPocketOpen = stageData.pockets.map(pocketInitiallyOpen);
+  simPocketCloseTicks = stageData.pockets.map(() => 0);
+  simPocketBallsRemaining = stageData.pockets.map(() => 0);
+  simRouletteStates = simRouletteDefs.map(def => ({
+    phase: 'idle', tick: 0, pending: 0, willWin: false,
+    displaySymbols: Array(def.digits).fill(0),
+    finalSymbols: Array(def.digits).fill(0),
+  }));
+  simBallCount = 0;
+  simLastCapture = null;
+}
+
+function analyzeRunShot(opts, bonusEV) {
+  analyzeResetShotState();
+
+  const angleDeg = stageData.launcher.angle !== undefined ? stageData.launcher.angle : 90;
+  let speed = launchSpeedFor(opts.power, opts.kneePower, opts.kneeSpeed);
+  speed *= 1 + (simRandom() * 2 - 1) * opts.jitterSpeedPct / 100;
+  const angle = (angleDeg + (simRandom() * 2 - 1) * opts.jitterAngleDeg) * Math.PI / 180;
+  simBalls = [{
+    x: stageData.launcher.x, y: stageData.launcher.y,
+    vx: speed * Math.cos(angle), vy: speed * Math.sin(angle),
+    radius: 2.4, frozen: false,
+    stuckAnchorX: stageData.launcher.x, stuckAnchorY: stageData.launcher.y, stuckTicks: 0,
+  }];
+
+  let ticks = 0;
+  while (!simBalls[0].frozen && ticks < ANALYZE_MAX_TICKS) {
+    simStepPhysics();
+    ticks++;
+  }
+
+  const capture = simLastCapture;
+  const bonus = capture && capture.pocketIndex !== undefined ? bonusEV[capture.pocketIndex] : 0;
+  return { gain: simBallCount, bonus, ticks, capture };
+}
+
+function startAnalyze() {
+  if (analyzeRun) { analyzeRun.cancelled = true; return; }
+  stopSim();
+
+  const pmin = parseFloat(document.getElementById('an-pmin').value) || 0.5;
+  const pmax = parseFloat(document.getElementById('an-pmax').value) || 10;
+  const pstep = Math.max(parseFloat(document.getElementById('an-pstep').value) || 0.25, 0.05);
+  const shots = Math.max(parseInt(document.getElementById('an-shots').value) || 100, 1);
+  const seedText = document.getElementById('an-seed').value.trim();
+  const seed = seedText === '' ? (Date.now() >>> 0) : (Number(seedText) >>> 0);
+
+  const powers = [];
+  for (let p = pmin; p <= pmax + 1e-9; p += pstep) powers.push(Math.round(p * 100) / 100);
+  if (powers.length === 0) return;
+
+  const opts = {
+    kneePower: parseFloat(document.getElementById('sim-knee-power').value),
+    kneeSpeed: parseFloat(document.getElementById('sim-knee-speed').value),
+    jitterSpeedPct: parseFloat(document.getElementById('an-jspeed').value) || 0,
+    jitterAngleDeg: parseFloat(document.getElementById('an-jangle').value) || 0,
+  };
+
+  simHeadless = true;
+  simRandom = mulberry32(seed);
+  simCompileEvents();
+  const bonusEV = analyzeComputeBonusEV();
+
+  analyzeRun = {
+    cancelled: false, seed, shots, opts, bonusEV,
+    bins: powers.map(p => ({ power: p, gains: [], drains: 0, ticksSum: 0, pockets: {} })),
+    bi: 0, si: 0, done: 0, total: powers.length * shots,
+    startedAt: performance.now(),
+  };
+  analyzeSelectedBin = -1;
+  document.getElementById('btn-analyze').textContent = 'Cancel';
+  document.getElementById('an-progress').style.display = 'block';
+  document.getElementById('an-detail').innerHTML = '';
+  setTimeout(analyzeChunk, 0);
+}
+
+function analyzeChunk() {
+  const run = analyzeRun;
+  if (!run) return;
+  const deadline = performance.now() + 40;
+  while (performance.now() < deadline) {
+    if (run.cancelled || run.bi >= run.bins.length) { finishAnalyze(); return; }
+    const bin = run.bins[run.bi];
+    const r = analyzeRunShot({ ...run.opts, power: bin.power }, run.bonusEV);
+    bin.gains.push(r.gain + r.bonus);
+    bin.ticksSum += r.ticks;
+    let key;
+    if (!r.capture) key = 'timeout';
+    else if (r.capture.kind === 'boundsDrain' || r.capture.kind === 'drain') key = 'drain';
+    else key = r.capture.id || r.capture.kind;
+    bin.pockets[key] = (bin.pockets[key] || 0) + 1;
+    if (key === 'drain') bin.drains++;
+    run.si++; run.done++;
+    if (run.si >= run.shots) { run.si = 0; run.bi++; }
+  }
+  document.getElementById('an-progress-bar').style.width = (run.done / run.total * 100).toFixed(1) + '%';
+  document.getElementById('an-progress-text').textContent = `${run.done} / ${run.total}`;
+  setTimeout(analyzeChunk, 0);
+}
+
+function finishAnalyze() {
+  const run = analyzeRun;
+  analyzeRun = null;
+  simHeadless = false;
+  simRandom = Math.random;
+
+  const elapsed = ((performance.now() - run.startedAt) / 1000).toFixed(1);
+  const bins = run.bins.filter(b => b.gains.length > 0).map(b => {
+    const n = b.gains.length;
+    const mean = b.gains.reduce((a, v) => a + v, 0) / n;
+    const variance = b.gains.reduce((a, v) => a + (v - mean) ** 2, 0) / n;
+    return {
+      power: b.power, shots: n, ev: mean, std: Math.sqrt(variance),
+      drainRate: b.drains / n, avgTicks: b.ticksSum / n, pockets: b.pockets,
+    };
+  });
+  analyzeResults = {
+    stageName: stageData.name, seed: run.seed, cancelled: run.cancelled,
+    shotsPerPower: run.shots, jitter: { speedPct: run.opts.jitterSpeedPct, angleDeg: run.opts.jitterAngleDeg },
+    bins, scorecard: computeScorecard(bins), elapsedSec: elapsed,
+  };
+
+  document.getElementById('btn-analyze').textContent = 'Run Sweep';
+  document.getElementById('an-progress').style.display = 'none';
+  resetSim();
+  drawAnalyzeChart();
+  renderScorecard();
+  setStatus(`Analyze: ${run.done}発 / ${elapsed}s${run.cancelled ? ' (cancelled)' : ''}`);
+}
+
+function computeScorecard(bins) {
+  if (bins.length === 0) return null;
+  const evs = bins.map(b => b.ev);
+  const meanEV = evs.reduce((a, v) => a + v, 0) / evs.length;
+  const best = bins.reduce((a, b) => (b.ev > a.ev ? b : a), bins[0]);
+  let hotZones = 0, inHot = false, deadBins = 0, stdSum = 0;
+  for (const b of bins) {
+    const hot = b.ev >= ANALYZE_HOT_EV;
+    if (hot && !inHot) hotZones++;
+    inHot = hot;
+    if (b.ev <= ANALYZE_DEAD_EV) deadBins++;
+    stdSum += b.std;
+  }
+  return {
+    meanEV, bestPower: best.power, bestEV: best.ev, hotZones,
+    deadRatio: deadBins / bins.length,
+    strategyScore: meanEV > 0.0001 ? best.ev / meanEV : 0,
+    avgStd: stdSum / bins.length,
+  };
+}
+
+function drawAnalyzeChart() {
+  const canvas = document.getElementById('analyze-chart');
+  if (!analyzeResults || analyzeResults.bins.length === 0) { canvas.style.display = 'none'; return; }
+  canvas.style.display = 'block';
+  const c = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const bins = analyzeResults.bins;
+  const maxEV = Math.max(1.5, ...bins.map(b => b.ev)) * 1.05;
+  const top = 4, bottom = 12;
+  const yFor = ev => H - bottom - (ev / maxEV) * (H - top - bottom);
+  const bw = W / bins.length;
+
+  c.clearRect(0, 0, W, H);
+  bins.forEach((b, i) => {
+    if (i === analyzeSelectedBin) c.fillStyle = '#ffff00';
+    else if (b.ev >= ANALYZE_HOT_EV) c.fillStyle = '#00e676';
+    else if (b.ev <= ANALYZE_DEAD_EV) c.fillStyle = '#e94560';
+    else c.fillStyle = '#4a90d9';
+    const y = yFor(b.ev);
+    c.fillRect(i * bw + 0.5, y, Math.max(bw - 1, 1), H - bottom - y);
+  });
+
+  c.strokeStyle = 'rgba(255,255,255,0.45)';
+  c.setLineDash([3, 3]);
+  c.beginPath(); c.moveTo(0, yFor(1)); c.lineTo(W, yFor(1)); c.stroke();
+  c.setLineDash([]);
+
+  c.fillStyle = '#888';
+  c.font = '8px sans-serif';
+  c.textAlign = 'left';
+  c.fillText(`P${bins[0].power}`, 2, H - 3);
+  c.fillText('EV1.0', 2, yFor(1) - 2);
+  c.textAlign = 'right';
+  c.fillText(`P${bins[bins.length - 1].power}`, W - 2, H - 3);
+}
+
+function renderScorecard() {
+  const el = document.getElementById('an-scorecard');
+  const s = analyzeResults && analyzeResults.scorecard;
+  if (!s) { el.innerHTML = ''; return; }
+  el.innerHTML =
+    `平均EV <b>${s.meanEV.toFixed(2)}</b> ／ 最良 <b>P${s.bestPower}</b> → EV <b style="color:#00e676">${s.bestEV.toFixed(2)}</b><br>` +
+    `ホットゾーン <b>${s.hotZones}</b> ／ 死に帯 <b>${(s.deadRatio * 100).toFixed(0)}%</b> ／ 攻略性 <b>×${s.strategyScore.toFixed(2)}</b>`;
+}
+
+function analyzeShowBinDetail(i) {
+  const bins = analyzeResults ? analyzeResults.bins : [];
+  const b = bins[i];
+  const el = document.getElementById('an-detail');
+  if (!b) { el.innerHTML = ''; return; }
+  analyzeSelectedBin = i;
+  drawAnalyzeChart();
+  const breakdown = Object.entries(b.pockets)
+    .sort((x, y) => y[1] - x[1])
+    .map(([k, n]) => `${k}: ${(n / b.shots * 100).toFixed(0)}%`)
+    .join(' / ');
+  el.innerHTML =
+    `<b>P${b.power}</b> EV ${b.ev.toFixed(2)} (±${b.std.toFixed(2)})　滞在 ${(b.avgTicks / 120).toFixed(1)}s<br>` +
+    `${breakdown}<br>` +
+    `<button onclick="analyzeUsePower(${b.power})" style="margin-top:2px;padding:1px 8px;font-size:10px">このPowerで打つ</button>`;
+}
+
+function analyzeUsePower(power) {
+  document.getElementById('sim-power').value = power;
+  updateSimLaunchMapping();
 }
 let physBallPos = null; // { x, y } in board coords, null = not placed yet
 
@@ -2803,6 +3121,14 @@ document.getElementById('ball-radius').addEventListener('input', (e) => {
 // ── Simulation events ──
 document.getElementById('btn-sim-launch').addEventListener('click', simLaunchBall);
 document.getElementById('btn-sim-reset').addEventListener('click', resetSim);
+document.getElementById('btn-analyze').addEventListener('click', startAnalyze);
+document.getElementById('analyze-chart').addEventListener('click', (e) => {
+  if (!analyzeResults || analyzeResults.bins.length === 0) return;
+  const rect = e.target.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (e.target.width / rect.width);
+  const i = Math.floor(x / (e.target.width / analyzeResults.bins.length));
+  analyzeShowBinDetail(Math.min(Math.max(i, 0), analyzeResults.bins.length - 1));
+});
 document.getElementById('sim-power').addEventListener('input', updateSimLaunchMapping);
 document.getElementById('sim-knee-power').addEventListener('input', (e) => {
   document.getElementById('sim-knee-power-val').textContent = parseFloat(e.target.value).toFixed(1);

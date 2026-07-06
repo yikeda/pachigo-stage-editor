@@ -277,6 +277,12 @@ canvas { background: #1a1a1a; cursor: crosshair; transform-origin: 0 0; }
       <input type="number" id="an-jangle" value="0.3" step="0.1" min="0" style="width:40px"><span style="color:#666">°</span>
     </div>
     <button class="file-btn" id="btn-analyze" style="background:#1a4a7a;border-color:#2a6aaa">Run Sweep</button>
+    <div style="display:flex;align-items:center;gap:3px">
+      <label style="color:#aaa;width:34px">Sess</label>
+      <input type="number" id="an-session-balls" value="100" min="10" step="10" style="width:44px">
+      <button id="btn-session" style="flex:1;padding:2px 4px;font-size:10px;background:#0f3460;border:1px solid #1a4a7a;border-radius:3px;color:#e0e0e0">Run @Power</button>
+    </div>
+    <div id="an-session-result" style="color:#ccc;line-height:1.5"></div>
     <div id="an-progress" style="display:none">
       <div style="background:#0a1428;border-radius:3px;height:8px;overflow:hidden">
         <div id="an-progress-bar" style="background:#33ccff;height:100%;width:0%"></div>
@@ -286,6 +292,7 @@ canvas { background: #1a1a1a; cursor: crosshair; transform-origin: 0 0; }
     <canvas id="analyze-chart" width="186" height="120" style="display:none;background:#0a1428;border-radius:4px;cursor:crosshair"></canvas>
     <div id="an-scorecard" style="color:#ccc;line-height:1.5"></div>
     <div id="an-detail" style="color:#aaa;line-height:1.4"></div>
+    <button id="btn-an-export" style="display:none;padding:2px 6px;font-size:10px;background:#0f3460;border:1px solid #1a4a7a;border-radius:3px;color:#e0e0e0">Export Report</button>
   </div>
 
   <h3>Mirror</h3>
@@ -1178,6 +1185,7 @@ function finishAnalyze() {
 
   document.getElementById('btn-analyze').textContent = 'Run Sweep';
   document.getElementById('an-progress').style.display = 'none';
+  document.getElementById('btn-an-export').style.display = 'block';
   resetSim();
   drawAnalyzeChart();
   renderScorecard();
@@ -1270,6 +1278,166 @@ function analyzeShowBinDetail(i) {
 function analyzeUsePower(power) {
   document.getElementById('sim-power').value = power;
   updateSimLaunchMapping();
+}
+
+// ── Analyze: セッション実測（大当たりループ込み） ──
+function analyzeRunSession(opts) {
+  analyzeResetShotState();
+  simBalls = [];
+  simJackpotCount = 0;
+  simSpinCount = 0;
+
+  const intervalTicks = Math.max(Math.round(opts.intervalSec * 120), 18);
+  const angleDeg = stageData.launcher.angle !== undefined ? stageData.launcher.angle : 90;
+  const maxTicks = opts.balls * intervalTicks + 30 * 120;
+  let fired = 0;
+  let nextFire = 0;
+  let tick = 0;
+
+  const spawn = () => {
+    let speed = launchSpeedFor(opts.power, opts.kneePower, opts.kneeSpeed);
+    speed *= 1 + (simRandom() * 2 - 1) * opts.jitterSpeedPct / 100;
+    const angle = (angleDeg + (simRandom() * 2 - 1) * opts.jitterAngleDeg) * Math.PI / 180;
+    const ball = {
+      x: stageData.launcher.x, y: stageData.launcher.y,
+      vx: speed * Math.cos(angle), vy: speed * Math.sin(angle),
+      radius: 2.4, frozen: false,
+      stuckAnchorX: stageData.launcher.x, stuckAnchorY: stageData.launcher.y, stuckTicks: 0,
+    };
+    const slot = simBalls.findIndex(b => b.frozen);
+    if (slot >= 0) { simBalls[slot] = ball; return true; }
+    if (simBalls.length < 5) { simBalls.push(ball); return true; }
+    return false;
+  };
+
+  while (tick < maxTicks) {
+    if (fired < opts.balls && tick >= nextFire) {
+      if (spawn()) {
+        fired++;
+        nextFire = tick + intervalTicks;
+      } else {
+        nextFire = tick + 12;
+      }
+    }
+    simStepPhysics();
+    tick++;
+    if (fired >= opts.balls
+        && simBalls.every(b => b.frozen)
+        && simRouletteStates.every(s => s.phase === 'idle' && s.pending === 0)) break;
+  }
+
+  return {
+    power: opts.power, fired, gained: simBallCount,
+    evPerBall: fired > 0 ? simBallCount / fired : 0,
+    jackpots: simJackpotCount, spins: simSpinCount,
+    seconds: tick / 120,
+  };
+}
+
+function startSession() {
+  if (analyzeRun) return;
+  stopSim();
+  const balls = Math.max(parseInt(document.getElementById('an-session-balls').value) || 100, 1);
+  const power = parseFloat(document.getElementById('sim-power').value);
+  const seedText = document.getElementById('an-seed').value.trim();
+  const seed = seedText === '' ? (Date.now() >>> 0) : (Number(seedText) >>> 0);
+  const opts = {
+    power, balls,
+    intervalSec: parseFloat(document.getElementById('sim-auto-interval').value) || 0.55,
+    kneePower: parseFloat(document.getElementById('sim-knee-power').value),
+    kneeSpeed: parseFloat(document.getElementById('sim-knee-speed').value),
+    jitterSpeedPct: parseFloat(document.getElementById('an-jspeed').value) || 0,
+    jitterAngleDeg: parseFloat(document.getElementById('an-jangle').value) || 0,
+  };
+
+  simHeadless = true;
+  simRandom = mulberry32(seed);
+  simCompileEvents();
+  const t0 = performance.now();
+  const result = analyzeRunSession(opts);
+  const elapsed = ((performance.now() - t0) / 1000).toFixed(1);
+  simHeadless = false;
+  simRandom = Math.random;
+  resetSim();
+
+  analyzeSessionResult = { ...result, seed, elapsed };
+  const evColor = result.evPerBall >= 1.0 ? '#00e676' : '#e94560';
+  let sweepNote = '';
+  if (analyzeResults) {
+    const bin = analyzeResults.bins.reduce(
+      (a, b) => Math.abs(b.power - power) < Math.abs(a.power - power) ? b : a,
+      analyzeResults.bins[0]
+    );
+    if (bin) sweepNote = `<br>スイープ補正EV(P${bin.power}): ${bin.ev.toFixed(2)}`;
+  }
+  document.getElementById('an-session-result').innerHTML =
+    `<b>P${power}</b> ${result.fired}発 → 獲得 ${result.gained}` +
+    ` <b style="color:${evColor}">実測EV ${result.evPerBall.toFixed(2)}</b><br>` +
+    `回転 ${result.spins} / 大当たり ${result.jackpots} / 実機${result.seconds.toFixed(0)}s相当（解析${elapsed}s）` +
+    sweepNote;
+}
+
+let analyzeSessionResult = null;
+
+// ── Analyze: レポート書き出し ──
+function analyzeExportReport() {
+  if (!analyzeResults) { setStatus('先にRun Sweepを実行してください'); return; }
+  const r = analyzeResults;
+  const s = r.scorecard;
+  const lines = [];
+  lines.push(`# ${r.stageName} 攻略性解析レポート`);
+  lines.push('');
+  lines.push(`- 日時: ${new Date().toISOString()}`);
+  lines.push(`- 設定: ${r.shotsPerPower}発/Power, ジッター 速度±${r.jitter.speedPct}% 角度±${r.jitter.angleDeg}°, seed=${r.seed}`);
+  lines.push(`- 解析時間: ${r.elapsedSec}s${r.cancelled ? '（途中キャンセル）' : ''}`);
+  lines.push('');
+  lines.push('## スコアカード');
+  lines.push('');
+  lines.push(`| 指標 | 値 |`);
+  lines.push(`|---|---|`);
+  lines.push(`| 平均EV | ${s.meanEV.toFixed(2)} |`);
+  lines.push(`| 最良Power | P${s.bestPower} (EV ${s.bestEV.toFixed(2)}) |`);
+  lines.push(`| ホットゾーン数 (EV≥${ANALYZE_HOT_EV}) | ${s.hotZones} |`);
+  lines.push(`| 死にPower帯割合 (EV≤${ANALYZE_DEAD_EV}) | ${(s.deadRatio * 100).toFixed(0)}% |`);
+  lines.push(`| 攻略性 (最良EV÷平均EV) | ×${s.strategyScore.toFixed(2)} |`);
+  lines.push(`| 運要素 (bin内標準偏差平均) | ${s.avgStd.toFixed(2)} |`);
+  if (analyzeSessionResult) {
+    const ss = analyzeSessionResult;
+    lines.push(`| セッション実測 (P${ss.power}, ${ss.fired}発) | EV ${ss.evPerBall.toFixed(2)}, 大当たり${ss.jackpots}回 |`);
+  }
+  lines.push('');
+  lines.push('## Power別データ');
+  lines.push('');
+  lines.push('| Power | EV | ±σ | Drain% | 滞在s | 主な入賞先 |');
+  lines.push('|---:|---:|---:|---:|---:|---|');
+  for (const b of r.bins) {
+    const top = Object.entries(b.pockets).sort((x, y) => y[1] - x[1]).slice(0, 3)
+      .map(([k, n]) => `${k} ${(n / b.shots * 100).toFixed(0)}%`).join(', ');
+    lines.push(`| ${b.power} | ${b.ev.toFixed(2)} | ${b.std.toFixed(2)} | ${(b.drainRate * 100).toFixed(0)} | ${(b.avgTicks / 120).toFixed(1)} | ${top} |`);
+  }
+  lines.push('');
+  lines.push('## AIレビュー依頼');
+  lines.push('');
+  lines.push('上記の解析結果をもとに、この盤面の攻略性・難易度・運要素を講評し、以下の観点で改善案を提示してください:');
+  lines.push('');
+  lines.push('- 死にPower帯を減らす釘・役物調整');
+  lines.push('- 高期待値ゾーンが2〜3個になる調整（現在の理想: 適当打ちEV≈0.8、攻略時EV≈1.6）');
+  lines.push('- 初心者向け/上級者向けバランス');
+  lines.push('');
+  lines.push('```json');
+  lines.push(JSON.stringify(r, null, 1));
+  lines.push('```');
+  lines.push('');
+
+  const md = lines.join('\n');
+  const blob = new Blob([md], { type: 'text/markdown' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${r.stageName || 'stage'}_analysis.md`;
+  a.click();
+  URL.revokeObjectURL(url);
+  setStatus('Exported: ' + a.download);
 }
 let physBallPos = null; // { x, y } in board coords, null = not placed yet
 
@@ -3122,6 +3290,8 @@ document.getElementById('ball-radius').addEventListener('input', (e) => {
 document.getElementById('btn-sim-launch').addEventListener('click', simLaunchBall);
 document.getElementById('btn-sim-reset').addEventListener('click', resetSim);
 document.getElementById('btn-analyze').addEventListener('click', startAnalyze);
+document.getElementById('btn-session').addEventListener('click', startSession);
+document.getElementById('btn-an-export').addEventListener('click', analyzeExportReport);
 document.getElementById('analyze-chart').addEventListener('click', (e) => {
   if (!analyzeResults || analyzeResults.bins.length === 0) return;
   const rect = e.target.getBoundingClientRect();

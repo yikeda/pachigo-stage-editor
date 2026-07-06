@@ -341,6 +341,52 @@ const CH = BOARD_H * SCALE;
 const FULL_W = CW + AXIS_MARGIN;
 const FULL_H = CH + AXIS_MARGIN;
 
+// ── Stage templates ──
+// 新規ステージはテンプレートから作る。coconuts_lane が標準:
+// 楕円外周 + 左射出レーン（登り切れない玉はfoulで戻る）+ 底drain。射出経路は検証済み
+const STAGE_TEMPLATES = {
+  blank: {
+    launcher: { x: 14, y: 40, angle: 90 },
+  },
+  coconuts_lane: {
+    ovalBounds: { cx: 75, cy: 80, rx: 75, ry: 80, material: "slide" },
+    pockets: [
+      { x: 75, y: 2, innerRadius: 8, assistRadius: 12, kind: "drain", payout: 0 },
+      { x: 34, y: 19, innerRadius: 5.5, assistRadius: 11, kind: "foul" },
+    ],
+    walls: [
+      { id: "", x1: 35, y1: 13, x2: 41, y2: 22, material: "normal" },
+      { id: "", x1: 40, y1: 22, x2: 28, y2: 33, material: "slide" },
+      { id: "", x1: 28, y1: 33, x2: 21, y2: 45, material: "slide" },
+      { id: "", x1: 21, y1: 45, x2: 16, y2: 60, material: "slide" },
+      { id: "", x1: 16, y1: 60, x2: 13, y2: 79, material: "slide" },
+      { id: "", x1: 13, y1: 79, x2: 13, y2: 95, material: "slide" },
+      { id: "", x1: 13, y1: 95, x2: 19, y2: 111, material: "slide" },
+      { id: "", x1: 19, y1: 111, x2: 25, y2: 122, material: "slide" },
+      { id: "", x1: 122, y1: 122, x2: 133, y2: 132, material: "absorb" },
+    ],
+    launcher: { angle: 120, x: 21, y: 26 },
+  },
+};
+
+function newStage(templateKey) {
+  const template = STAGE_TEMPLATES[templateKey || 'coconuts_lane'] || STAGE_TEMPLATES.blank;
+  const base = {
+    name: "NewStage",
+    size: { width: BOARD_W, height: BOARD_H },
+    initialBalls: 100,
+    pegs: [],
+    pockets: [],
+    walls: [],
+    colliders: [],
+    launcher: { x: 14, y: 40, angle: 90 },
+    decorations: [],
+    events: [],
+    roulettes: [],
+  };
+  return { ...base, ...JSON.parse(JSON.stringify(template)) };
+}
+
 // ── State ──
 let stageData = newStage();
 let currentTool = 'select';
@@ -1539,52 +1585,6 @@ function undo() {
 
 function updateUndoInfo() {
   document.getElementById('undo-info').textContent = undoStack.length > 0 ? `Undo: ${undoStack.length}` : '';
-}
-
-// ── Stage templates ──
-// 新規ステージはテンプレートから作る。coconuts_lane が標準:
-// 楕円外周 + 左射出レーン（登り切れない玉はfoulで戻る）+ 底drain。射出経路は検証済み
-const STAGE_TEMPLATES = {
-  blank: {
-    launcher: { x: 14, y: 40, angle: 90 },
-  },
-  coconuts_lane: {
-    ovalBounds: { cx: 75, cy: 80, rx: 75, ry: 80, material: "slide" },
-    pockets: [
-      { x: 75, y: 2, innerRadius: 8, assistRadius: 12, kind: "drain", payout: 0 },
-      { x: 34, y: 19, innerRadius: 5.5, assistRadius: 11, kind: "foul" },
-    ],
-    walls: [
-      { id: "", x1: 35, y1: 13, x2: 41, y2: 22, material: "normal" },
-      { id: "", x1: 40, y1: 22, x2: 28, y2: 33, material: "slide" },
-      { id: "", x1: 28, y1: 33, x2: 21, y2: 45, material: "slide" },
-      { id: "", x1: 21, y1: 45, x2: 16, y2: 60, material: "slide" },
-      { id: "", x1: 16, y1: 60, x2: 13, y2: 79, material: "slide" },
-      { id: "", x1: 13, y1: 79, x2: 13, y2: 95, material: "slide" },
-      { id: "", x1: 13, y1: 95, x2: 19, y2: 111, material: "slide" },
-      { id: "", x1: 19, y1: 111, x2: 25, y2: 122, material: "slide" },
-      { id: "", x1: 122, y1: 122, x2: 133, y2: 132, material: "absorb" },
-    ],
-    launcher: { angle: 120, x: 21, y: 26 },
-  },
-};
-
-function newStage(templateKey) {
-  const template = STAGE_TEMPLATES[templateKey || 'coconuts_lane'] || STAGE_TEMPLATES.blank;
-  const base = {
-    name: "NewStage",
-    size: { width: BOARD_W, height: BOARD_H },
-    initialBalls: 100,
-    pegs: [],
-    pockets: [],
-    walls: [],
-    colliders: [],
-    launcher: { x: 14, y: 40, angle: 90 },
-    decorations: [],
-    events: [],
-    roulettes: [],
-  };
-  return { ...base, ...JSON.parse(JSON.stringify(template)) };
 }
 
 function createStageFromTemplate() {

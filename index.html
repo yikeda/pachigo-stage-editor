@@ -105,6 +105,11 @@ canvas { background: #1a1a1a; cursor: crosshair; transform-origin: 0 0; }
   <h2>PachiGo Editor</h2>
 
   <h3>File</h3>
+  <select id="template-select" style="padding:3px 6px;background:#0f3460;border:1px solid #1a4a7a;border-radius:3px;color:#e0e0e0;font-size:11px;width:100%">
+    <option value="coconuts_lane" selected>外周+左レーン（標準）</option>
+    <option value="blank">Blank</option>
+  </select>
+  <button class="file-btn" id="btn-new">New from Template</button>
   <button class="file-btn" id="btn-load">Open JSON...</button>
   <button class="file-btn" id="btn-export">Export JSON</button>
   <input type="file" id="file-input" accept=".json" style="display:none">
@@ -137,6 +142,7 @@ canvas { background: #1a1a1a; cursor: crosshair; transform-origin: 0 0; }
       <option value="drain">Drain (0)</option>
       <option value="chucker">Chucker (+8)</option>
       <option value="tulip">Tulip (+5)</option>
+      <option value="foul">Foul (戻り玉+1)</option>
     </select>
   </div>
   <button class="tool-btn" data-tool="wall">Wall (line) <span class="shortcut">W</span></button>
@@ -571,8 +577,9 @@ function simStepPhysics() {
       const dist2 = dx * dx + dy * dy;
       simPocketAssist(b, p);
       if (dist2 < p.innerRadius * p.innerRadius) {
-        const payout = p.payout !== undefined ? p.payout : (p.kind === 'drain' ? 0 : 3);
+        const payout = p.payout !== undefined ? p.payout : (p.kind === 'drain' || p.kind === 'foul' ? 0 : 3);
         if (p.kind === 'drain') simDrainCount++;
+        else if (p.kind === 'foul') simBallCount += 1;
         else { simBallCount += payout; simWinCount++; }
         simLastCapture = { pocketIndex: pi, id: p.id, kind: p.kind };
         simFireEvents(simOnBallIn[pi]);
@@ -771,7 +778,7 @@ function simCollideOval(b, oval) {
 }
 
 function simPocketAssist(b, pocket) {
-  if (pocket.kind === 'drain') return;
+  if (pocket.kind === 'drain' || pocket.kind === 'foul') return;
   const dx = pocket.x - b.x, dy = pocket.y - b.y;
   const dist = Math.max(Math.sqrt(dx * dx + dy * dy), 0.0001);
   if (dist >= pocket.assistRadius) return;
@@ -1027,7 +1034,7 @@ let analyzeSelectedBin = -1;
 
 function pocketPayoutOf(pi) {
   const p = stageData.pockets[pi];
-  return p.payout !== undefined ? p.payout : (p.kind === 'drain' ? 0 : 3);
+  return p.payout !== undefined ? p.payout : (p.kind === 'drain' || p.kind === 'foul' ? 0 : 3);
 }
 
 // 単発では測れない大当たりループの期待値を解析的に推定（maxBalls×payoutは上限値）
@@ -1534,9 +1541,37 @@ function updateUndoInfo() {
   document.getElementById('undo-info').textContent = undoStack.length > 0 ? `Undo: ${undoStack.length}` : '';
 }
 
-// ── New stage ──
-function newStage() {
-  return {
+// ── Stage templates ──
+// 新規ステージはテンプレートから作る。coconuts_lane が標準:
+// 楕円外周 + 左射出レーン（登り切れない玉はfoulで戻る）+ 底drain。射出経路は検証済み
+const STAGE_TEMPLATES = {
+  blank: {
+    launcher: { x: 14, y: 40, angle: 90 },
+  },
+  coconuts_lane: {
+    ovalBounds: { cx: 75, cy: 80, rx: 75, ry: 80, material: "slide" },
+    pockets: [
+      { x: 75, y: 2, innerRadius: 8, assistRadius: 12, kind: "drain", payout: 0 },
+      { x: 34, y: 19, innerRadius: 5.5, assistRadius: 11, kind: "foul" },
+    ],
+    walls: [
+      { id: "", x1: 35, y1: 13, x2: 41, y2: 22, material: "normal" },
+      { id: "", x1: 40, y1: 22, x2: 28, y2: 33, material: "slide" },
+      { id: "", x1: 28, y1: 33, x2: 21, y2: 45, material: "slide" },
+      { id: "", x1: 21, y1: 45, x2: 16, y2: 60, material: "slide" },
+      { id: "", x1: 16, y1: 60, x2: 13, y2: 79, material: "slide" },
+      { id: "", x1: 13, y1: 79, x2: 13, y2: 95, material: "slide" },
+      { id: "", x1: 13, y1: 95, x2: 19, y2: 111, material: "slide" },
+      { id: "", x1: 19, y1: 111, x2: 25, y2: 122, material: "slide" },
+      { id: "", x1: 122, y1: 122, x2: 133, y2: 132, material: "absorb" },
+    ],
+    launcher: { angle: 120, x: 21, y: 26 },
+  },
+};
+
+function newStage(templateKey) {
+  const template = STAGE_TEMPLATES[templateKey || 'coconuts_lane'] || STAGE_TEMPLATES.blank;
+  const base = {
     name: "NewStage",
     size: { width: BOARD_W, height: BOARD_H },
     initialBalls: 100,
@@ -1549,6 +1584,21 @@ function newStage() {
     events: [],
     roulettes: [],
   };
+  return { ...base, ...JSON.parse(JSON.stringify(template)) };
+}
+
+function createStageFromTemplate() {
+  if (!confirm('現在の内容を破棄して、テンプレートから新規作成しますか？')) return;
+  stageData = newStage(document.getElementById('template-select').value);
+  selected = null;
+  multiSelected = [];
+  undoStack.length = 0;
+  updateUndoInfo();
+  resetSim();
+  showProps();
+  renderEvents();
+  draw();
+  setStatus('New stage from template');
 }
 
 // ── Peg gap enforcement ──
@@ -1659,14 +1709,14 @@ const MATERIAL_COLORS = {
   pin: '#ffffff', rubber: '#ff6b6b', pocketRim: '#ffd93d', steel: '#aaaaaa',
   normal: '#4a90d9', slide: '#6dd5ed', bounce: '#ff6b6b', absorb: '#c39bd3', mirror: '#99f2d9',
   wall: '#4a90d9', rail: '#6dd5ed', soft: '#c39bd3', glass: '#99f2d9',
-  win: '#00e676', drain: '#ff5252', chucker: '#33ccff', tulip: '#ffd93d',
+  win: '#00e676', drain: '#ff5252', chucker: '#33ccff', tulip: '#ffd93d', foul: '#9ea8bd',
 };
 
 function pocketColor(kind) {
-  return { drain: 'rgba(255,82,82,', win: 'rgba(0,230,118,', chucker: 'rgba(51,204,255,', tulip: 'rgba(255,217,61,' }[kind] || 'rgba(0,230,118,';
+  return { drain: 'rgba(255,82,82,', win: 'rgba(0,230,118,', chucker: 'rgba(51,204,255,', tulip: 'rgba(255,217,61,', foul: 'rgba(158,168,189,' }[kind] || 'rgba(0,230,118,';
 }
 function pocketLabel(kind) {
-  return { drain: 'OUT', win: 'IN', chucker: 'START', tulip: 'TULIP' }[kind] || kind;
+  return { drain: 'OUT', win: 'IN', chucker: 'START', tulip: 'TULIP', foul: 'BACK' }[kind] || kind;
 }
 
 function isSel(type, index) {
@@ -2446,7 +2496,7 @@ function showProps() {
   } else if (selected.type === 'pockets') {
     html = propRow('x', obj.x) + propRow('y', obj.y)
       + propRow('innerRadius', obj.innerRadius) + propRow('assistRadius', obj.assistRadius)
-      + propSelect('kind', obj.kind || 'win', ['win', 'drain', 'chucker', 'tulip'])
+      + propSelect('kind', obj.kind || 'win', ['win', 'drain', 'chucker', 'tulip', 'foul'])
       + propRow('payout', obj.payout !== undefined ? obj.payout : (obj.kind === 'drain' ? 0 : 3))
       + propInput('id', obj.id || '')
       + propCheck('initiallyOpen', pocketInitiallyOpen(obj))
@@ -3075,6 +3125,7 @@ document.querySelectorAll('.tool-btn').forEach(btn => {
 });
 
 // ── File I/O ──
+document.getElementById('btn-new').addEventListener('click', createStageFromTemplate);
 document.getElementById('btn-load').addEventListener('click', () => {
   if (window.showOpenFilePicker) {
     (async () => {
@@ -3122,7 +3173,7 @@ function loadFile(file) {
         delete p.lottery;
       }
       stageData = {
-        ...newStage(), ...data,
+        ...newStage('blank'), ...data,
         pegs: data.pegs || [],
         pockets,
         walls,

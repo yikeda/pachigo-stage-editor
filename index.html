@@ -97,6 +97,29 @@ canvas { background: #1a1a1a; cursor: crosshair; transform-origin: 0 0; }
   font-size: 24px; color: #e94560; pointer-events: none;
 }
 #drop-overlay.visible { display: flex; }
+
+/* ── Stage gallery ── */
+#gallery-overlay {
+  position: fixed; inset: 0; z-index: 90; display: none; background: rgba(2, 6, 23, 0.88);
+  padding: 22px; overflow: auto;
+}
+#gallery-overlay.visible { display: block; }
+#gallery-panel {
+  max-width: 1120px; margin: 0 auto; background: #101936; border: 1px solid #1a4a7a;
+  border-radius: 12px; padding: 14px; box-shadow: 0 12px 36px rgba(0,0,0,0.45);
+}
+#gallery-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+#gallery-header h2 { font-size: 16px; color: #e94560; }
+#gallery-status { font-size: 11px; color: #9ca3af; margin-bottom: 10px; }
+#gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.gallery-card {
+  background: #0f172a; border: 1px solid #26395f; border-radius: 10px; padding: 8px;
+  cursor: pointer; color: #e5e7eb; transition: border-color 0.15s, transform 0.15s;
+}
+.gallery-card:hover { border-color: #e94560; transform: translateY(-1px); }
+.gallery-card-title { font-size: 11px; margin-bottom: 6px; color: #e5e7eb; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gallery-card-meta { font-size: 10px; color: #94a3b8; margin-top: 5px; }
+.gallery-card svg { width: 100%; height: auto; display: block; background: #020617; border-radius: 6px; }
 </style>
 </head>
 <body>
@@ -111,6 +134,7 @@ canvas { background: #1a1a1a; cursor: crosshair; transform-origin: 0 0; }
   </select>
   <button class="file-btn" id="btn-new">New from Template</button>
   <button class="file-btn" id="btn-load">Open JSON...</button>
+  <button class="file-btn" id="btn-gallery">Stage Gallery</button>
   <button class="file-btn" id="btn-export">Export JSON</button>
   <input type="file" id="file-input" accept=".json" style="display:none">
 
@@ -172,6 +196,18 @@ canvas { background: #1a1a1a; cursor: crosshair; transform-origin: 0 0; }
   <button class="tool-btn" data-tool="launcher">Launcher <span class="shortcut">L</span></button>
   <button class="tool-btn" data-tool="oval">Oval Bounds <span class="shortcut">G</span></button>
   <button class="tool-btn" data-tool="roulette">Roulette <span class="shortcut">T</span></button>
+
+  <h3>Parts</h3>
+  <button class="file-btn" id="btn-load-parts">Load Parts</button>
+  <select id="part-select" style="padding:3px 6px;background:#0f3460;border:1px solid #1a4a7a;border-radius:3px;color:#e0e0e0;font-size:10px;width:100%">
+    <option value="">Parts not loaded</option>
+  </select>
+  <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+    <input type="checkbox" id="chk-part-mirror">
+    <label for="chk-part-mirror" style="font-size:11px">Mirror X</label>
+  </div>
+  <button class="tool-btn" data-tool="part">Place Part</button>
+  <div id="part-status" style="font-size:10px;color:#777;margin-top:3px;line-height:1.3">GitHub main の parts_manifest から読み込みます</div>
 
   <h3>Options</h3>
   <div id="grid-snap-group">
@@ -330,6 +366,17 @@ canvas { background: #1a1a1a; cursor: crosshair; transform-origin: 0 0; }
 </div>
 
 <div id="drop-overlay">Drop JSON file</div>
+
+<div id="gallery-overlay">
+  <div id="gallery-panel">
+    <div id="gallery-header">
+      <h2>Stage Gallery</h2>
+      <button class="file-btn" id="btn-gallery-close" style="padding:6px 12px">Close</button>
+    </div>
+    <div id="gallery-status">GitHub main の最新ステージJSONを読み込みます。</div>
+    <div id="gallery-grid"></div>
+  </div>
+</div>
 
 <script>
 // ── Constants ──
@@ -2946,6 +2993,11 @@ canvas.addEventListener('mousedown', (e) => {
     return;
   }
 
+  if (currentTool === 'part') {
+    placeSelectedPart(bx, by);
+    return;
+  }
+
   if (currentTool === 'wall') {
     if (!wallStart) {
       wallStart = { x: bx, y: by };
@@ -3125,6 +3177,150 @@ document.querySelectorAll('.tool-btn').forEach(btn => {
 });
 
 // ── File I/O ──
+const STAGE_GALLERY_API = 'https://api.github.com/repos/yikeda/PachiGo/contents/PachiGO%20Watch%20App/Assets/Boards?ref=main';
+const PARTS_MANIFEST_URL = 'https://raw.githubusercontent.com/yikeda/PachiGo/main/tools/stage-generator/parts_manifest.json';
+const PARTS_RAW_BASE_URL = 'https://raw.githubusercontent.com/yikeda/PachiGo/main/tools/stage-generator/parts';
+let partsManifest = null;
+let partsLibrary = new Map();
+
+function normalizeStageData(data) {
+  const matRename = { wall: 'normal', rail: 'slide', rubber: 'bounce', soft: 'absorb', glass: 'mirror' };
+  const migrateMat = (arr) => arr.forEach(o => { if (o.material && matRename[o.material]) o.material = matRename[o.material]; });
+  const walls = data.walls || [];
+  const colliders = data.colliders || [];
+  migrateMat(walls);
+  migrateMat(colliders);
+  const pockets = data.pockets || [];
+  const events = data.events || [];
+  for (const p of pockets) {
+    if (!p.lottery) continue;
+    events.push({
+      trigger: { type: 'ballIn', pocket: p.id },
+      chance: p.lottery.winRate,
+      actions: [{ type: 'open', targets: p.lottery.opens || [], duration: p.lottery.duration }],
+    });
+    delete p.lottery;
+  }
+  const normalized = {
+    ...newStage('blank'), ...data,
+    pegs: data.pegs || [],
+    pockets,
+    walls,
+    colliders,
+    launcher: data.launcher ? { angle: 90, ...data.launcher } : { x: 14, y: 40, angle: 90 },
+    decorations: data.decorations || [],
+    events,
+    roulettes: data.roulettes || [],
+  };
+  for (const k of Object.keys(data)) {
+    if (!(k in normalized)) normalized[k] = data[k];
+  }
+  return normalized;
+}
+
+function loadStageObject(data, label) {
+  stageData = normalizeStageData(data);
+  selected = null; multiSelected = [];
+  undoStack.length = 0;
+  updateUndoInfo();
+  resetSim();
+  simBallCount = stageData.initialBalls || 100;
+  showProps(); renderEvents(); draw();
+  setStatus(`Loaded: ${label || stageData.name || 'stage'}`);
+}
+
+function setPartStatus(message) {
+  const el = document.getElementById('part-status');
+  if (el) el.textContent = message;
+}
+
+async function loadPartsLibrary() {
+  const select = document.getElementById('part-select');
+  setPartStatus('Parts manifest を読み込み中...');
+  try {
+    const manifestRes = await fetch(PARTS_MANIFEST_URL);
+    if (!manifestRes.ok) throw new Error(`manifest HTTP ${manifestRes.status}`);
+    partsManifest = await manifestRes.json();
+    const entries = partsManifest.parts || [];
+    partsLibrary = new Map();
+    select.innerHTML = '';
+    for (const entry of entries) {
+      const partRes = await fetch(`${PARTS_RAW_BASE_URL}/${entry.file}`);
+      if (!partRes.ok) throw new Error(`${entry.file} HTTP ${partRes.status}`);
+      const part = await partRes.json();
+      partsLibrary.set(part.name, { ...entry, part });
+      const option = document.createElement('option');
+      option.value = part.name;
+      option.textContent = `${entry.title || part.title || part.name} [${(entry.tags || part.tags || []).join(',')}]`;
+      select.appendChild(option);
+    }
+    setPartStatus(`${partsLibrary.size} parts loaded. Place Part → キャンバスクリックで配置`);
+    if (partsLibrary.size > 0) setTool('part');
+  } catch (err) {
+    partsManifest = null;
+    partsLibrary = new Map();
+    select.innerHTML = '<option value="">Load failed</option>';
+    setPartStatus(`Parts読み込み失敗: ${err.message}`);
+  }
+}
+
+function selectedPartEntry() {
+  const name = document.getElementById('part-select').value;
+  return name ? partsLibrary.get(name) : null;
+}
+
+function instantiateEditorPart(part, ax, ay, mirror) {
+  const flip = mirror ? -1 : 1;
+  const round2 = v => Math.round(v * 100) / 100;
+  return {
+    pegs: (part.pegs || []).map(pg => ({ ...pg, x: round2(ax + pg.x * flip), y: round2(ay + pg.y) })),
+    pockets: (part.pockets || []).map(pk => ({ ...pk, x: round2(ax + pk.x * flip), y: round2(ay + pk.y) })),
+  };
+}
+
+function makeUniquePocketID(base) {
+  const ids = new Set(stageData.pockets.map(p => p.id).filter(Boolean));
+  let n = 1;
+  let id = base;
+  while (ids.has(id)) id = `${base}_${n++}`;
+  return id;
+}
+
+function placeSelectedPart(ax, ay) {
+  const entry = selectedPartEntry();
+  if (!entry) {
+    setPartStatus('先に Load Parts してパーツを選択してください');
+    return;
+  }
+  const mirror = document.getElementById('chk-part-mirror').checked;
+  const inst = instantiateEditorPart(entry.part, ax, ay, mirror);
+  if (inst.pegs.length === 0 && inst.pockets.length === 0) {
+    setPartStatus(`${entry.part.name} は配置できる要素がありません`);
+    return;
+  }
+  saveUndo();
+  const placed = [];
+  for (const peg of inst.pegs) {
+    stageData.pegs.push(peg);
+    placed.push({ type: 'pegs', index: stageData.pegs.length - 1 });
+  }
+  for (let i = 0; i < inst.pockets.length; i++) {
+    const pocket = inst.pockets[i];
+    if (pocket.id || pocket.kind === 'chucker' || pocket.kind === 'tulip') {
+      const base = pocket.id || `${entry.part.name}_${pocket.kind || 'pocket'}`;
+      pocket.id = makeUniquePocketID(base);
+    }
+    stageData.pockets.push(pocket);
+    placed.push({ type: 'pockets', index: stageData.pockets.length - 1 });
+  }
+  selected = placed.length === 1 ? placed[0] : null;
+  multiSelected = placed.length > 1 ? placed : [];
+  showProps(); renderEvents(); draw();
+  setPartStatus(`Placed ${entry.title || entry.part.title || entry.part.name}: pegs=${inst.pegs.length}, pockets=${inst.pockets.length}`);
+}
+
+document.getElementById('btn-load-parts').addEventListener('click', loadPartsLibrary);
+
 document.getElementById('btn-new').addEventListener('click', createStageFromTemplate);
 document.getElementById('btn-load').addEventListener('click', () => {
   if (window.showOpenFilePicker) {
@@ -3155,50 +3351,133 @@ function loadFile(file) {
   reader.onload = (e) => {
     try {
       const data = JSON.parse(e.target.result);
-      const matRename = { wall: 'normal', rail: 'slide', rubber: 'bounce', soft: 'absorb', glass: 'mirror' };
-      const migrateMat = (arr) => arr.forEach(o => { if (o.material && matRename[o.material]) o.material = matRename[o.material]; });
-      const walls = data.walls || [];
-      const colliders = data.colliders || [];
-      migrateMat(walls);
-      migrateMat(colliders);
-      const pockets = data.pockets || [];
-      const events = data.events || [];
-      for (const p of pockets) {
-        if (!p.lottery) continue;
-        events.push({
-          trigger: { type: 'ballIn', pocket: p.id },
-          chance: p.lottery.winRate,
-          actions: [{ type: 'open', targets: p.lottery.opens || [], duration: p.lottery.duration }],
-        });
-        delete p.lottery;
-      }
-      stageData = {
-        ...newStage('blank'), ...data,
-        pegs: data.pegs || [],
-        pockets,
-        walls,
-        colliders,
-        launcher: data.launcher ? { angle: 90, ...data.launcher } : { x: 14, y: 40, angle: 90 },
-        decorations: data.decorations || [],
-        events,
-        roulettes: data.roulettes || [],
-      };
-      for (const k of Object.keys(data)) {
-        if (!(k in stageData)) stageData[k] = data[k];
-      }
-      selected = null; multiSelected = [];
-      undoStack.length = 0;
-      updateUndoInfo();
-      resetSim();
-      simBallCount = stageData.initialBalls || 100;
-      showProps(); renderEvents(); draw();
-      setStatus(`Loaded: ${file.name}`);
+      loadStageObject(data, file.name);
     } catch (err) {
       setStatus(`Error: ${err.message}`);
     }
   };
   reader.readAsText(file);
 }
+
+function escHTML(v) {
+  return String(v ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+}
+
+function galleryColor(material, fallback = '#d1d5db') {
+  return {
+    pin: '#d1d5db', steel: '#94a3b8', rubber: '#fb923c', pocketRim: '#f59e0b',
+    wall: '#64748b', normal: '#64748b', rail: '#38bdf8', slide: '#22d3ee',
+    bounce: '#a78bfa', absorb: '#ef4444', mirror: '#f8fafc', soft: '#a3a3a3',
+  }[material] || fallback;
+}
+
+function galleryPocketColor(kind) {
+  return { drain: '#111827', foul: '#60a5fa', chucker: '#22c55e', tulip: '#ec4899', win: '#facc15' }[kind || 'win'] || '#facc15';
+}
+
+function stagePreviewSVG(stage) {
+  const width = stage.size?.width || BOARD_W;
+  const height = stage.size?.height || BOARD_H;
+  const scale = 1.25;
+  const margin = 8;
+  const labelH = 18;
+  const w = width * scale + margin * 2;
+  const h = height * scale + margin * 2 + labelH;
+  const x = (v) => margin + v * scale;
+  const y = (v) => labelH + margin + (height - v) * scale;
+  const title = stage.name || 'unnamed';
+  const parts = [
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" aria-label="${escHTML(title)}">`,
+    `<rect width="${w}" height="${h}" fill="#0f172a"/>`,
+    `<text x="${margin}" y="13" fill="#e5e7eb" font-family="Menlo, Consolas, monospace" font-size="8">${escHTML(title)}</text>`,
+    `<rect x="${margin}" y="${labelH + margin}" width="${width * scale}" height="${height * scale}" fill="#020617" stroke="#334155" stroke-width="0.8"/>`,
+  ];
+  if (stage.ovalBounds) {
+    const o = stage.ovalBounds;
+    parts.push(`<ellipse cx="${x(o.cx)}" cy="${y(o.cy)}" rx="${o.rx * scale}" ry="${o.ry * scale}" fill="none" stroke="${galleryColor(o.material, '#22d3ee')}" stroke-width="1.2" opacity="0.8"/>`);
+  }
+  for (const wall of stage.walls || []) {
+    parts.push(`<line x1="${x(wall.x1)}" y1="${y(wall.y1)}" x2="${x(wall.x2)}" y2="${y(wall.y2)}" stroke="${galleryColor(wall.material, '#64748b')}" stroke-width="1.2" stroke-linecap="round"/>`);
+  }
+  for (const box of stage.colliders || []) {
+    if (box.type !== 'box') continue;
+    parts.push(`<rect x="${x(box.x) - box.width * scale / 2}" y="${y(box.y) - box.height * scale / 2}" width="${box.width * scale}" height="${box.height * scale}" fill="${galleryColor(box.material, '#38bdf8')}" opacity="0.32" stroke="${galleryColor(box.material, '#38bdf8')}" transform="rotate(${-(box.angle || 0)} ${x(box.x)} ${y(box.y)})"/>`);
+  }
+  for (const peg of stage.pegs || []) {
+    parts.push(`<circle cx="${x(peg.x)}" cy="${y(peg.y)}" r="${Math.max(1, (peg.r || 1.3) * scale)}" fill="${galleryColor(peg.material)}" opacity="0.92"/>`);
+  }
+  for (const pocket of stage.pockets || []) {
+    const color = galleryPocketColor(pocket.kind);
+    const open = pocket.initiallyOpen !== false;
+    parts.push(`<circle cx="${x(pocket.x)}" cy="${y(pocket.y)}" r="${(pocket.assistRadius || pocket.innerRadius || 4) * scale}" fill="${color}" opacity="0.08"/>`);
+    parts.push(`<circle cx="${x(pocket.x)}" cy="${y(pocket.y)}" r="${(pocket.innerRadius || 4) * scale}" fill="${color}" opacity="${open ? 0.55 : 0.16}" stroke="${color}" stroke-width="0.9"/>`);
+  }
+  for (const roulette of stage.roulettes || []) {
+    const rw = (roulette.width || 30) * scale;
+    const rh = (roulette.height || 13) * scale;
+    parts.push(`<rect x="${x(roulette.x) - rw / 2}" y="${y(roulette.y) - rh / 2}" width="${rw}" height="${rh}" rx="2" fill="#111827" stroke="#f97316" stroke-width="1.2"/>`);
+    parts.push(`<text x="${x(roulette.x)}" y="${y(roulette.y) + 3}" text-anchor="middle" fill="#fed7aa" font-family="Menlo, Consolas, monospace" font-size="8" font-weight="700">777</text>`);
+  }
+  if (stage.launcher) {
+    const angle = (stage.launcher.angle ?? 90) * Math.PI / 180;
+    const lx = x(stage.launcher.x), ly = y(stage.launcher.y);
+    parts.push(`<circle cx="${lx}" cy="${ly}" r="${2.8 * scale}" fill="#38bdf8" stroke="#e0f2fe" stroke-width="0.8"/>`);
+    parts.push(`<line x1="${lx}" y1="${ly}" x2="${lx + Math.cos(angle) * 10}" y2="${ly - Math.sin(angle) * 10}" stroke="#38bdf8" stroke-width="1.2"/>`);
+  }
+  parts.push('</svg>');
+  return parts.join('');
+}
+
+async function loadStageGallery() {
+  const overlay = document.getElementById('gallery-overlay');
+  const grid = document.getElementById('gallery-grid');
+  const status = document.getElementById('gallery-status');
+  overlay.classList.add('visible');
+  grid.innerHTML = '';
+  status.textContent = 'GitHub main からステージ一覧を取得中...';
+  try {
+    const listRes = await fetch(STAGE_GALLERY_API, { headers: { Accept: 'application/vnd.github+json' } });
+    if (!listRes.ok) throw new Error(`list HTTP ${listRes.status}`);
+    const entries = (await listRes.json())
+      .filter(e => e.type === 'file' && e.name.endsWith('.json'))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    status.textContent = `${entries.length}件のステージJSONを読み込み中...`;
+    const stages = await Promise.all(entries.map(async (entry) => {
+      const res = await fetch(entry.download_url);
+      if (!res.ok) throw new Error(`${entry.name} HTTP ${res.status}`);
+      return { entry, data: await res.json() };
+    }));
+    grid.innerHTML = '';
+    for (const item of stages) {
+      const stage = normalizeStageData(item.data);
+      const meta = stage.metadata || {};
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'gallery-card';
+      card.innerHTML = `
+        <div class="gallery-card-title">${escHTML(stage.name || item.entry.name)}</div>
+        ${stagePreviewSVG(stage)}
+        <div class="gallery-card-meta">pegs:${stage.pegs.length} pockets:${stage.pockets.length} events:${(stage.events || []).length}${meta.archetype ? ` / ${escHTML(meta.archetype)}` : ''}</div>
+      `;
+      card.addEventListener('click', () => {
+        loadStageObject(item.data, item.entry.name);
+        overlay.classList.remove('visible');
+      });
+      grid.appendChild(card);
+    }
+    status.textContent = `GitHub main の ${stages.length}件を表示中。クリックでエディターに読み込みます。`;
+  } catch (err) {
+    status.textContent = `読み込み失敗: ${err.message}`;
+  }
+}
+
+document.getElementById('btn-gallery').addEventListener('click', loadStageGallery);
+document.getElementById('btn-gallery-close').addEventListener('click', () => {
+  document.getElementById('gallery-overlay').classList.remove('visible');
+});
+document.getElementById('gallery-overlay').addEventListener('click', (e) => {
+  if (e.target.id === 'gallery-overlay') e.currentTarget.classList.remove('visible');
+});
 
 document.getElementById('btn-export').addEventListener('click', () => {
   const output = { name: stageData.name, size: stageData.size };

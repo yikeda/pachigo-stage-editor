@@ -1227,6 +1227,7 @@ function startAnalyze() {
   analyzeRun = {
     cancelled: false, seed, shots, opts, bonusEV,
     bins: powers.map(p => ({ power: p, gains: [], drains: 0, ticksSum: 0, pockets: {} })),
+    dwells: [],
     bi: 0, si: 0, done: 0, total: powers.length * shots,
     startedAt: performance.now(),
   };
@@ -1247,6 +1248,7 @@ function analyzeChunk() {
     const r = analyzeRunShot({ ...run.opts, power: bin.power }, run.bonusEV);
     bin.gains.push(r.gain + r.bonus);
     bin.ticksSum += r.ticks;
+    run.dwells.push(r.ticks / 120);
     let key;
     if (!r.capture) key = 'timeout';
     else if (r.capture.kind === 'boundsDrain' || r.capture.kind === 'drain') key = 'drain';
@@ -1277,7 +1279,10 @@ function finishAnalyze() {
       drainRate: b.drains / n, avgTicks: b.ticksSum / n, pockets: b.pockets,
     };
   });
+  run.dwells.sort((a, b) => a - b);
+  const dwellAt = f => run.dwells.length ? run.dwells[Math.min(Math.floor(run.dwells.length * f), run.dwells.length - 1)] : 0;
   analyzeResults = {
+    dwell: { median: dwellAt(0.5), p95: dwellAt(0.95) },
     stageName: stageData.name, seed: run.seed, cancelled: run.cancelled,
     shotsPerPower: run.shots, jitter: { speedPct: run.opts.jitterSpeedPct, angleDeg: run.opts.jitterAngleDeg },
     bins, scorecard: computeScorecard(bins), elapsedSec: elapsed,
@@ -1353,9 +1358,12 @@ function renderScorecard() {
   const el = document.getElementById('an-scorecard');
   const s = analyzeResults && analyzeResults.scorecard;
   if (!s) { el.innerHTML = ''; return; }
+  const dw = analyzeResults.dwell;
+  const dwellColor = dw.median >= 1.5 && dw.median <= 4.0 ? '#00e676' : '#ffb74d';
   el.innerHTML =
     `平均EV <b>${s.meanEV.toFixed(2)}</b> ／ 最良 <b>P${s.bestPower}</b> → EV <b style="color:#00e676">${s.bestEV.toFixed(2)}</b><br>` +
-    `ホットゾーン <b>${s.hotZones}</b> ／ 死に帯 <b>${(s.deadRatio * 100).toFixed(0)}%</b> ／ 攻略性 <b>×${s.strategyScore.toFixed(2)}</b>`;
+    `ホットゾーン <b>${s.hotZones}</b> ／ 死に帯 <b>${(s.deadRatio * 100).toFixed(0)}%</b> ／ 攻略性 <b>×${s.strategyScore.toFixed(2)}</b><br>` +
+    `滞留 中央値 <b style="color:${dwellColor}">${dw.median.toFixed(2)}s</b> ／ p95 <b>${dw.p95.toFixed(2)}s</b>（目標帯 1.5〜4.0s）`;
 }
 
 function analyzeShowBinDetail(i) {
@@ -1501,6 +1509,7 @@ function analyzeExportReport() {
   lines.push(`| 死にPower帯割合 (EV≤${ANALYZE_DEAD_EV}) | ${(s.deadRatio * 100).toFixed(0)}% |`);
   lines.push(`| 攻略性 (最良EV÷平均EV) | ×${s.strategyScore.toFixed(2)} |`);
   lines.push(`| 運要素 (bin内標準偏差平均) | ${s.avgStd.toFixed(2)} |`);
+  if (r.dwell) lines.push(`| 滞留時間 中央値/p95 (目標帯 1.5〜4.0s) | ${r.dwell.median.toFixed(2)}s / ${r.dwell.p95.toFixed(2)}s |`);
   if (analyzeSessionResult) {
     const ss = analyzeSessionResult;
     lines.push(`| セッション実測 (P${ss.power}, ${ss.fired}発) | EV ${ss.evPerBall.toFixed(2)}, 大当たり${ss.jackpots}回 |`);

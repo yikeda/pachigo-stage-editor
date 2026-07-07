@@ -2522,6 +2522,7 @@ function showProps() {
     container.innerHTML += '<button class="action-btn delete-btn" onclick="deleteMultiSelected()">Delete All Selected</button>';
     container.innerHTML += '<button class="action-btn mirror-btn" onclick="mirrorMultiLR()">Mirror L/R</button>';
     container.innerHTML += '<button class="action-btn mirror-btn" onclick="mirrorMultiUD()">Mirror U/D</button>';
+    container.innerHTML += '<button class="action-btn" onclick="exportSelectionAsPart()">Export as Part</button>';
     info.textContent = summary;
     return;
   }
@@ -3317,6 +3318,63 @@ function placeSelectedPart(ax, ay) {
   multiSelected = placed.length > 1 ? placed : [];
   showProps(); renderEvents(); draw();
   setPartStatus(`Placed ${entry.title || entry.part.title || entry.part.name}: pegs=${inst.pegs.length}, pockets=${inst.pockets.length}`);
+}
+
+// 選択中の釘/ポケットをパーツJSONとして書き出す（parts/ に置いて manifest に追記すれば語彙になる）
+function exportSelectionAsPart() {
+  const sels = multiSelected.length > 0 ? multiSelected : (selected ? [selected] : []);
+  const pegSel = sels.filter(sl => sl.type === 'pegs').map(sl => stageData.pegs[sl.index]).filter(Boolean);
+  const pocketSel = sels.filter(sl => sl.type === 'pockets').map(sl => stageData.pockets[sl.index]).filter(Boolean);
+  if (pegSel.length + pocketSel.length === 0) {
+    setStatus('釘またはポケットを選択してください');
+    return;
+  }
+  const name = prompt('パーツ名（英小文字とアンダースコア）', 'my_part');
+  if (!name) return;
+  const title = prompt('表示名', name) || name;
+
+  // アンカー: ポケット1個ならその中心、他は選択の重心
+  let ax, ay, anchor;
+  if (pocketSel.length === 1) {
+    ax = pocketSel[0].x; ay = pocketSel[0].y; anchor = 'pocket';
+  } else {
+    const all = [...pegSel, ...pocketSel];
+    ax = all.reduce((a, o) => a + o.x, 0) / all.length;
+    ay = all.reduce((a, o) => a + o.y, 0) / all.length;
+    anchor = 'free';
+  }
+  const round1 = v => Math.round(v * 10) / 10;
+  const relPegs = pegSel.map(pg => {
+    const out = { x: round1(pg.x - ax), y: round1(pg.y - ay), r: pg.r };
+    if (pg.material) out.material = pg.material;
+    return out;
+  });
+  const relPockets = pocketSel.map(pk => {
+    const out = { x: round1(pk.x - ax), y: round1(pk.y - ay), innerRadius: pk.innerRadius, assistRadius: pk.assistRadius, kind: pk.kind || 'win' };
+    if (pk.payout !== undefined) out.payout = pk.payout;
+    return out;
+  });
+  // 対称判定
+  const symmetric = relPegs.every(pg => Math.abs(pg.x) < 0.05
+    || relPegs.some(q => Math.abs(q.x + pg.x) < 0.15 && Math.abs(q.y - pg.y) < 0.15 && q.r === pg.r));
+  // ギャップ簡易リント（警告のみ）
+  let gapWarn = 0;
+  for (let i = 0; i < relPegs.length; i++) for (let j = i + 1; j < relPegs.length; j++) {
+    const need = relPegs[i].r + relPegs[j].r + 4.8;
+    if (Math.hypot(relPegs[i].x - relPegs[j].x, relPegs[i].y - relPegs[j].y) < need - 0.01) gapWarn++;
+  }
+  const part = { name, title, source: 'stage-editor export', tags: [], anchor, symmetric };
+  if (relPockets.length) part.pockets = relPockets;
+  part.pegs = relPegs;
+  const json = JSON.stringify(part, null, 2) + '\n';
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  setStatus(`Part exported: ${name}.json${gapWarn ? `（ギャップ警告${gapWarn}件 — Ball Gap未満のペアあり）` : ''} → parts/ に置いて manifest に追記`);
 }
 
 document.getElementById('btn-load-parts').addEventListener('click', loadPartsLibrary);

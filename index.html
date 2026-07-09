@@ -373,7 +373,7 @@ canvas { background: #1a1a1a; cursor: crosshair; transform-origin: 0 0; }
       <h2>Stage Gallery</h2>
       <button class="file-btn" id="btn-gallery-close" style="padding:6px 12px">Close</button>
     </div>
-    <div id="gallery-status">GitHub main の最新ステージJSONを読み込みます。</div>
+    <div id="gallery-status">最新ステージJSONを読み込みます。</div>
     <div id="gallery-grid"></div>
   </div>
 </div>
@@ -3187,6 +3187,7 @@ document.querySelectorAll('.tool-btn').forEach(btn => {
 });
 
 // ── File I/O ──
+const STAGE_GALLERY_PAGES = 'stages/';
 const STAGE_GALLERY_API = 'https://api.github.com/repos/yikeda/PachiGo/contents/PachiGO%20Watch%20App/Assets/Boards?ref=main';
 const PARTS_MANIFEST_URL = 'https://raw.githubusercontent.com/yikeda/PachiGo/main/tools/stage-generator/parts_manifest.json';
 const PARTS_RAW_BASE_URL = 'https://raw.githubusercontent.com/yikeda/PachiGo/main/tools/stage-generator/parts';
@@ -3524,25 +3525,23 @@ async function loadStageGallery() {
   const status = document.getElementById('gallery-status');
   overlay.classList.add('visible');
   grid.innerHTML = '';
-  status.textContent = 'GitHub main からステージ一覧を取得中...';
+  status.textContent = 'ステージ一覧を取得中...';
   try {
-    const listRes = await fetch(STAGE_GALLERY_API, { headers: { Accept: 'application/vnd.github+json' } });
-    if (!listRes.ok) throw new Error(`list HTTP ${listRes.status}`);
-    const entries = (await listRes.json())
-      .filter(e => e.type === 'file' && e.name.endsWith('.json'))
-      .sort((a, b) => a.name.localeCompare(b.name));
-    status.textContent = `${entries.length}件のステージJSONを読み込み中...`;
-    const stages = await Promise.all(entries.map(async (entry) => {
-      const res = await fetch(entry.download_url);
-      if (!res.ok) throw new Error(`${entry.name} HTTP ${res.status}`);
-      return { name: entry.name, data: await res.json() };
+    const indexRes = await fetch(STAGE_GALLERY_PAGES + 'index.json');
+    if (!indexRes.ok) throw new Error(`index HTTP ${indexRes.status}`);
+    const fileNames = await indexRes.json();
+    status.textContent = `${fileNames.length}件のステージJSONを読み込み中...`;
+    const stages = await Promise.all(fileNames.map(async (name) => {
+      const res = await fetch(STAGE_GALLERY_PAGES + name);
+      if (!res.ok) throw new Error(`${name} HTTP ${res.status}`);
+      return { name, data: await res.json() };
     }));
-    renderGalleryCards(grid, stages, 'GitHub main');
+    renderGalleryCards(grid, stages, '');
   } catch (err) {
-    status.textContent = `GitHub取得失敗 — ローカルフォルダからJSONを選択してください`;
+    status.textContent = `取得失敗 — ローカルからJSONを選択してください`;
     const pickBtn = document.createElement('button');
     pickBtn.className = 'file-btn';
-    pickBtn.textContent = 'フォルダを選択';
+    pickBtn.textContent = 'ファイルを選択';
     pickBtn.style.marginTop = '8px';
     pickBtn.addEventListener('click', () => loadGalleryFromLocal(grid));
     status.appendChild(document.createElement('br'));

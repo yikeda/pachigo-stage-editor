@@ -3495,6 +3495,29 @@ function stagePreviewSVG(stage) {
   return parts.join('');
 }
 
+function renderGalleryCards(grid, stages, sourceLabel) {
+  const status = document.getElementById('gallery-status');
+  grid.innerHTML = '';
+  for (const item of stages) {
+    const stage = normalizeStageData(item.data);
+    const meta = stage.metadata || {};
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'gallery-card';
+    card.innerHTML = `
+      <div class="gallery-card-title">${escHTML(stage.title || stage.name || item.name)}</div>
+      ${stagePreviewSVG(stage)}
+      <div class="gallery-card-meta">pegs:${stage.pegs.length} pockets:${stage.pockets.length} events:${(stage.events || []).length}${meta.archetype ? ` / ${escHTML(meta.archetype)}` : ''}</div>
+    `;
+    card.addEventListener('click', () => {
+      loadStageObject(item.data, item.name);
+      overlay.classList.remove('visible');
+    });
+    grid.appendChild(card);
+  }
+  status.textContent = `${sourceLabel} ${stages.length}件を表示中。クリックでエディターに読み込みます。`;
+}
+
 async function loadStageGallery() {
   const overlay = document.getElementById('gallery-overlay');
   const grid = document.getElementById('gallery-grid');
@@ -3512,27 +3535,39 @@ async function loadStageGallery() {
     const stages = await Promise.all(entries.map(async (entry) => {
       const res = await fetch(entry.download_url);
       if (!res.ok) throw new Error(`${entry.name} HTTP ${res.status}`);
-      return { entry, data: await res.json() };
+      return { name: entry.name, data: await res.json() };
     }));
-    grid.innerHTML = '';
-    for (const item of stages) {
-      const stage = normalizeStageData(item.data);
-      const meta = stage.metadata || {};
-      const card = document.createElement('button');
-      card.type = 'button';
-      card.className = 'gallery-card';
-      card.innerHTML = `
-        <div class="gallery-card-title">${escHTML(stage.name || item.entry.name)}</div>
-        ${stagePreviewSVG(stage)}
-        <div class="gallery-card-meta">pegs:${stage.pegs.length} pockets:${stage.pockets.length} events:${(stage.events || []).length}${meta.archetype ? ` / ${escHTML(meta.archetype)}` : ''}</div>
-      `;
-      card.addEventListener('click', () => {
-        loadStageObject(item.data, item.entry.name);
-        overlay.classList.remove('visible');
-      });
-      grid.appendChild(card);
-    }
-    status.textContent = `GitHub main の ${stages.length}件を表示中。クリックでエディターに読み込みます。`;
+    renderGalleryCards(grid, stages, 'GitHub main');
+  } catch (err) {
+    status.textContent = `GitHub取得失敗 — ローカルフォルダからJSONを選択してください`;
+    const pickBtn = document.createElement('button');
+    pickBtn.className = 'file-btn';
+    pickBtn.textContent = 'フォルダを選択';
+    pickBtn.style.marginTop = '8px';
+    pickBtn.addEventListener('click', () => loadGalleryFromLocal(grid));
+    status.appendChild(document.createElement('br'));
+    status.appendChild(pickBtn);
+  }
+}
+
+async function loadGalleryFromLocal(grid) {
+  const status = document.getElementById('gallery-status');
+  try {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.accept = '.json';
+    input.addEventListener('change', async () => {
+      const files = Array.from(input.files).filter(f => f.name.startsWith('stage_') && f.name.endsWith('.json'));
+      files.sort((a, b) => a.name.localeCompare(b.name));
+      status.textContent = `${files.length}件のJSONを読み込み中...`;
+      const stages = await Promise.all(files.map(async (file) => {
+        const text = await file.text();
+        return { name: file.name, data: JSON.parse(text) };
+      }));
+      renderGalleryCards(grid, stages, 'ローカル');
+    });
+    input.click();
   } catch (err) {
     status.textContent = `読み込み失敗: ${err.message}`;
   }

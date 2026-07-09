@@ -135,6 +135,7 @@ canvas { background: #1a1a1a; cursor: crosshair; transform-origin: 0 0; }
   <button class="file-btn" id="btn-new">New from Template</button>
   <button class="file-btn" id="btn-load">Open JSON...</button>
   <button class="file-btn" id="btn-gallery">Stage Gallery</button>
+  <button class="file-btn" id="btn-parts-gallery">Parts Gallery</button>
   <button class="file-btn" id="btn-export">Export JSON</button>
   <input type="file" id="file-input" accept=".json" style="display:none">
 
@@ -375,6 +376,17 @@ canvas { background: #1a1a1a; cursor: crosshair; transform-origin: 0 0; }
     </div>
     <div id="gallery-status">最新ステージJSONを読み込みます。</div>
     <div id="gallery-grid"></div>
+  </div>
+</div>
+
+<div id="parts-gallery-overlay" style="position:fixed;inset:0;z-index:91;display:none;background:rgba(2,6,23,0.88);padding:22px;overflow:auto">
+  <div style="max-width:1120px;margin:0 auto;background:#101936;border:1px solid #1a4a7a;border-radius:12px;padding:14px;box-shadow:0 12px 36px rgba(0,0,0,0.45)">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px">
+      <h2 style="font-size:16px;color:#e94560">Parts Gallery</h2>
+      <button class="file-btn" id="btn-parts-gallery-close" style="padding:6px 12px">Close</button>
+    </div>
+    <div id="parts-gallery-status" style="font-size:11px;color:#9ca3af;margin-bottom:10px">パーツ一覧を読み込みます。</div>
+    <div id="parts-gallery-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px"></div>
   </div>
 </div>
 
@@ -3571,6 +3583,121 @@ async function loadGalleryFromLocal(grid) {
     status.textContent = `読み込み失敗: ${err.message}`;
   }
 }
+
+// ── Parts Gallery ──
+const PARTS_GALLERY_PAGES = 'parts/';
+
+function partPreviewSVG(part) {
+  const pegs = part.pegs || [];
+  const pockets = part.pockets || [];
+  const walls = part.walls || [];
+  const allX = [...pegs.map(p => p.x), ...pockets.map(p => p.x), ...walls.flatMap(w => [w.x1, w.x2])];
+  const allY = [...pegs.map(p => p.y), ...pockets.map(p => p.y), ...walls.flatMap(w => [w.y1, w.y2])];
+  if (!allX.length) return '<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><text x="20" y="22" fill="#666" text-anchor="middle" font-size="8">empty</text></svg>';
+  const pad = 8;
+  const minX = Math.min(...allX) - pad, maxX = Math.max(...allX) + pad;
+  const minY = Math.min(...allY) - pad, maxY = Math.max(...allY) + pad;
+  const w = maxX - minX || 1, h = maxY - minY || 1;
+  const parts = [`<svg viewBox="${minX} ${-maxY} ${w} ${h}" xmlns="http://www.w3.org/2000/svg" style="background:#020617">`];
+  for (const wl of walls) {
+    parts.push(`<line x1="${wl.x1}" y1="${-wl.y1}" x2="${wl.x2}" y2="${-wl.y2}" stroke="#38bdf8" stroke-width="0.8" stroke-linecap="round"/>`);
+  }
+  for (const pg of pegs) {
+    const col = pg.material === 'rubber' ? '#f59e0b' : pg.material === 'pocketRim' ? '#94a3b8' : '#ffffff';
+    parts.push(`<circle cx="${pg.x}" cy="${-pg.y}" r="${pg.r}" fill="${col}"/>`);
+  }
+  for (const pk of pockets) {
+    const col = pk.kind === 'chucker' ? '#22c55e' : pk.kind === 'drain' ? '#ef4444' : '#a855f7';
+    parts.push(`<circle cx="${pk.x}" cy="${-pk.y}" r="${pk.innerRadius}" fill="${col}" opacity="0.5"/>`);
+    parts.push(`<circle cx="${pk.x}" cy="${-pk.y}" r="${pk.innerRadius}" fill="none" stroke="${col}" stroke-width="0.5"/>`);
+  }
+  parts.push(`<circle cx="0" cy="0" r="1" fill="#e94560" opacity="0.6"/>`);
+  parts.push('</svg>');
+  return parts.join('');
+}
+
+async function loadPartsGallery() {
+  const overlay = document.getElementById('parts-gallery-overlay');
+  const grid = document.getElementById('parts-gallery-grid');
+  const status = document.getElementById('parts-gallery-status');
+  overlay.style.display = 'block';
+  grid.innerHTML = '';
+  status.textContent = 'パーツ一覧を取得中...';
+  try {
+    const indexRes = await fetch(PARTS_GALLERY_PAGES + 'index.json');
+    if (!indexRes.ok) throw new Error(`index HTTP ${indexRes.status}`);
+    const fileNames = await indexRes.json();
+    status.textContent = `${fileNames.length}件のパーツを読み込み中...`;
+    const parts = await Promise.all(fileNames.map(async (name) => {
+      const res = await fetch(PARTS_GALLERY_PAGES + name);
+      if (!res.ok) throw new Error(`${name} HTTP ${res.status}`);
+      return { name, data: await res.json() };
+    }));
+    grid.innerHTML = '';
+    const tagGroups = {};
+    for (const item of parts) {
+      const tags = item.data.tags || ['other'];
+      const tag = tags[0];
+      if (!tagGroups[tag]) tagGroups[tag] = [];
+      tagGroups[tag].push(item);
+    }
+    const tagOrder = ['unit-chucker', 'unit-attacker', 'unit-tulip', 'unit-win', 'unit-windmill', 'guide', 'field', 'shelf', 'deflector', 'decor', 'center-frame', 'other'];
+    for (const tag of tagOrder) {
+      if (!tagGroups[tag]) continue;
+      const header = document.createElement('div');
+      header.style.cssText = 'grid-column:1/-1;font-size:12px;color:#e94560;margin-top:8px;border-bottom:1px solid #1a4a7a;padding-bottom:4px';
+      header.textContent = tag;
+      grid.appendChild(header);
+      for (const item of tagGroups[tag]) {
+        const p = item.data;
+        const card = document.createElement('div');
+        card.className = 'gallery-card';
+        card.innerHTML = `
+          <div class="gallery-card-title">${escHTML(p.title || p.name)}</div>
+          ${partPreviewSVG(p)}
+          <div class="gallery-card-meta">pegs:${(p.pegs||[]).length} pockets:${(p.pockets||[]).length} walls:${(p.walls||[]).length}${p.symmetric ? ' sym' : ''}</div>
+        `;
+        grid.appendChild(card);
+      }
+    }
+    status.textContent = `${parts.length}件のパーツを表示中。`;
+  } catch (err) {
+    status.textContent = `取得失敗 — ローカルからJSONを選択してください`;
+    const pickBtn = document.createElement('button');
+    pickBtn.className = 'file-btn';
+    pickBtn.textContent = 'ファイルを選択';
+    pickBtn.style.marginTop = '8px';
+    pickBtn.addEventListener('click', () => {
+      const input = document.createElement('input');
+      input.type = 'file'; input.multiple = true; input.accept = '.json';
+      input.addEventListener('change', async () => {
+        const files = Array.from(input.files).filter(f => f.name.endsWith('.json'));
+        files.sort((a, b) => a.name.localeCompare(b.name));
+        const parts = await Promise.all(files.map(async (file) => ({ name: file.name, data: JSON.parse(await file.text()) })));
+        grid.innerHTML = '';
+        for (const item of parts) {
+          const p = item.data;
+          const card = document.createElement('div');
+          card.className = 'gallery-card';
+          card.innerHTML = `<div class="gallery-card-title">${escHTML(p.title || p.name)}</div>${partPreviewSVG(p)}<div class="gallery-card-meta">pegs:${(p.pegs||[]).length} pockets:${(p.pockets||[]).length}</div>`;
+          grid.appendChild(card);
+        }
+        status.textContent = `ローカル ${parts.length}件を表示中。`;
+      });
+      input.click();
+    });
+    status.appendChild(document.createElement('br'));
+    status.appendChild(pickBtn);
+  }
+}
+
+document.getElementById('btn-parts-gallery').addEventListener('click', loadPartsGallery);
+document.getElementById('btn-parts-gallery-close').addEventListener('click', () => {
+  document.getElementById('parts-gallery-overlay').style.display = 'none';
+});
+document.getElementById('parts-gallery-overlay').addEventListener('click', (e) => {
+  if (e.target.id === 'parts-gallery-overlay') e.target.style.display = 'none';
+});
 
 document.getElementById('btn-gallery').addEventListener('click', loadStageGallery);
 document.getElementById('btn-gallery-close').addEventListener('click', () => {

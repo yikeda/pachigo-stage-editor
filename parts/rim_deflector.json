@@ -1,0 +1,19 @@
+{
+  "name": "rim_deflector",
+  "title": "リムディフレクター",
+  "source": "パチ夫くん外周ダッシュ分析",
+  "tags": [
+    "deflector"
+  ],
+  "anchor": "free",
+  "symmetric": false,
+  "walls": [
+    {
+      "x1": 5,
+      "y1": 7,
+      "x2": -7,
+      "y2": -4,
+      "material": "slide"
+    }
+  ]
+}

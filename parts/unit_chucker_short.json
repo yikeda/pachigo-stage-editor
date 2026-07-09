@@ -1,0 +1,17 @@
+{
+  "name": "unit_chucker_short",
+  "title": "ショートチャッカーユニット（命釘）",
+  "source": "パチ夫くんGO入賞口分析",
+  "tags": ["unit-chucker"],
+  "anchor": "pocket",
+  "symmetric": true,
+  "pockets": [
+    { "x": 0, "y": 0, "innerRadius": 5, "assistRadius": 10, "kind": "chucker", "payout": 2 }
+  ],
+  "pegs": [
+    { "x": 7, "y": 4, "r": 1.5, "material": "pocketRim" },
+    { "x": -7, "y": 4, "r": 1.5, "material": "pocketRim" },
+    { "x": 10, "y": 13, "r": 1.4 },
+    { "x": -10, "y": 13, "r": 1.4 }
+  ]
+}

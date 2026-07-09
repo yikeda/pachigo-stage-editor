@@ -1,0 +1,13 @@
+{
+  "name": "cluster_bumper",
+  "title": "バンパークラスタ（ラバー3本）",
+  "source": "実機バンパー分析",
+  "tags": ["field"],
+  "anchor": "free",
+  "symmetric": true,
+  "pegs": [
+    { "x": 0, "y": 0, "r": 3.0, "material": "rubber" },
+    { "x": 8, "y": 10, "r": 2.5, "material": "rubber" },
+    { "x": -8, "y": 10, "r": 2.5, "material": "rubber" }
+  ]
+}

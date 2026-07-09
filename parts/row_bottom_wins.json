@@ -1,0 +1,42 @@
+{
+  "title": "下段win列（1-x-1）",
+  "source": "パチ夫くん下段入賞列分析",
+  "tags": [
+    "unit-win"
+  ],
+  "anchor": "free",
+  "symmetric": true,
+  "pockets": [
+    {
+      "x": -20,
+      "y": 0,
+      "innerRadius": 4.5,
+      "assistRadius": 9,
+      "kind": "win",
+      "payout": 1
+    },
+    {
+      "x": 20,
+      "y": 0,
+      "innerRadius": 4.5,
+      "assistRadius": 9,
+      "kind": "win",
+      "payout": 1
+    }
+  ],
+  "pegs": [
+    {
+      "x": 27,
+      "y": 3,
+      "r": 1.5,
+      "material": "pocketRim"
+    },
+    {
+      "x": -27,
+      "y": 3,
+      "r": 1.5,
+      "material": "pocketRim"
+    }
+  ],
+  "name": "row_bottom_wins"
+}

@@ -1,0 +1,26 @@
+{
+  "name": "shelf_slide",
+  "title": "スライド棚（内向き傾斜）",
+  "source": "パチ夫くん誘導レール分析",
+  "tags": [
+    "shelf"
+  ],
+  "anchor": "free",
+  "symmetric": false,
+  "walls": [
+    {
+      "x1": -15,
+      "y1": 5,
+      "x2": 13,
+      "y2": 0,
+      "material": "slide"
+    }
+  ],
+  "pegs": [
+    {
+      "x": -15,
+      "y": 12,
+      "r": 1.3
+    }
+  ]
+}

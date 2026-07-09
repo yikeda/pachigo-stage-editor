@@ -1,0 +1,26 @@
+{
+  "name": "zigzag_shelves",
+  "title": "ジグザグ棚",
+  "source": "パチ夫くん誘導レール分析",
+  "tags": [
+    "shelf"
+  ],
+  "anchor": "free",
+  "symmetric": false,
+  "walls": [
+    {
+      "x1": -20,
+      "y1": 16,
+      "x2": 6,
+      "y2": 11,
+      "material": "slide"
+    },
+    {
+      "x1": 20,
+      "y1": 2,
+      "x2": -6,
+      "y2": -3,
+      "material": "slide"
+    }
+  ]
+}

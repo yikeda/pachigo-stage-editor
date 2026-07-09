@@ -1,0 +1,15 @@
+{
+  "name": "pocket_simple",
+  "title": "単穴ポケット（命釘2本）",
+  "source": "実機標準入賞口",
+  "tags": ["unit-win"],
+  "anchor": "pocket",
+  "symmetric": true,
+  "pockets": [
+    { "x": 0, "y": 0, "innerRadius": 4.5, "assistRadius": 9, "kind": "win", "payout": 3 }
+  ],
+  "pegs": [
+    { "x": 7.5, "y": 3.5, "r": 1.5, "material": "pocketRim" },
+    { "x": -7.5, "y": 3.5, "r": 1.5, "material": "pocketRim" }
+  ]
+}

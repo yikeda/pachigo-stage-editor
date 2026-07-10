@@ -598,8 +598,11 @@ function simLaunchBall() {
   const power = parseFloat(document.getElementById('sim-power').value);
   if (power <= 0) return;
   const angleDeg = stageData.launcher.angle !== undefined ? stageData.launcher.angle : 90;
-  const launchAngle = angleDeg * Math.PI / 180;
-  const speed = simLaunchSpeed(power);
+  const jitterSpeedPct = parseFloat(document.getElementById('an-jspeed').value) || 0;
+  const jitterAngleDeg = parseFloat(document.getElementById('an-jangle').value) || 0;
+  let speed = simLaunchSpeed(power);
+  speed *= 1 + (Math.random() * 2 - 1) * jitterSpeedPct / 100;
+  const launchAngle = (angleDeg + (Math.random() * 2 - 1) * jitterAngleDeg) * Math.PI / 180;
   const vx = speed * Math.cos(launchAngle);
   const vy = speed * Math.sin(launchAngle);
   const ball = {

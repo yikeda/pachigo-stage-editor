@@ -26,220 +26,211 @@
       "material": "pocketRim"
     },
     {
-      "x": 53,
-      "y": 44,
+      "x": 50,
+      "y": 42,
       "r": 1.5,
       "material": "pocketRim"
+    },
+    {
+      "x": 36,
+      "y": 42,
+      "r": 1.5,
+      "material": "pocketRim"
+    },
+    {
+      "x": 47,
+      "y": 50,
+      "r": 1.3
     },
     {
       "x": 39,
-      "y": 44,
-      "r": 1.5,
-      "material": "pocketRim"
-    },
-    {
-      "x": 50,
-      "y": 52,
+      "y": 50,
       "r": 1.3
-    },
-    {
-      "x": 42,
-      "y": 52,
-      "r": 1.3
-    },
-    {
-      "x": 97,
-      "y": 44,
-      "r": 1.5,
-      "material": "pocketRim"
-    },
-    {
-      "x": 111,
-      "y": 44,
-      "r": 1.5,
-      "material": "pocketRim"
     },
     {
       "x": 100,
-      "y": 52,
+      "y": 42,
+      "r": 1.5,
+      "material": "pocketRim"
+    },
+    {
+      "x": 114,
+      "y": 42,
+      "r": 1.5,
+      "material": "pocketRim"
+    },
+    {
+      "x": 103,
+      "y": 50,
       "r": 1.3
     },
     {
-      "x": 108,
-      "y": 52,
+      "x": 111,
+      "y": 50,
       "r": 1.3
     },
     {
       "x": 62,
-      "y": 72,
+      "y": 62,
       "r": 1.5,
       "material": "pocketRim"
     },
     {
       "x": 48,
-      "y": 72,
+      "y": 62,
       "r": 1.5,
       "material": "pocketRim"
     },
     {
-      "x": 64,
-      "y": 80,
+      "x": 65,
+      "y": 71,
       "r": 1.4
     },
     {
-      "x": 67,
-      "y": 87.5,
-      "r": 1.4
-    },
-    {
-      "x": 70,
-      "y": 95,
-      "r": 1.4
-    },
-    {
-      "x": 46,
-      "y": 80,
-      "r": 1.4
-    },
-    {
-      "x": 43,
-      "y": 87.5,
-      "r": 1.4
-    },
-    {
-      "x": 40,
-      "y": 95,
+      "x": 45,
+      "y": 71,
       "r": 1.4
     },
     {
       "x": 88,
-      "y": 72,
+      "y": 62,
       "r": 1.5,
       "material": "pocketRim"
     },
     {
       "x": 102,
-      "y": 72,
-      "r": 1.5,
-      "material": "pocketRim"
-    },
-    {
-      "x": 86,
-      "y": 80,
-      "r": 1.4
-    },
-    {
-      "x": 83,
-      "y": 87.5,
-      "r": 1.4
-    },
-    {
-      "x": 80,
-      "y": 95,
-      "r": 1.4
-    },
-    {
-      "x": 104,
-      "y": 80,
-      "r": 1.4
-    },
-    {
-      "x": 107,
-      "y": 87.5,
-      "r": 1.4
-    },
-    {
-      "x": 110,
-      "y": 95,
-      "r": 1.4
-    },
-    {
-      "x": 82,
-      "y": 50,
-      "r": 1.5,
-      "material": "pocketRim"
-    },
-    {
-      "x": 68,
-      "y": 50,
+      "y": 62,
       "r": 1.5,
       "material": "pocketRim"
     },
     {
       "x": 85,
-      "y": 59,
+      "y": 71,
       "r": 1.4
     },
     {
-      "x": 65,
-      "y": 59,
+      "x": 105,
+      "y": 71,
       "r": 1.4
     },
     {
-      "x": 47,
-      "y": 120,
+      "x": 51,
+      "y": 118,
       "r": 4.5,
       "material": "rubber"
     },
     {
-      "x": 51,
-      "y": 131,
+      "x": 55,
+      "y": 129,
       "r": 1.3
     },
     {
-      "x": 55.5,
-      "y": 137.5,
+      "x": 59.5,
+      "y": 135.5,
       "r": 1.3
     },
     {
-      "x": 43,
-      "y": 131,
+      "x": 47,
+      "y": 129,
       "r": 1.3
     },
     {
-      "x": 38.5,
-      "y": 137.5,
+      "x": 42.5,
+      "y": 135.5,
+      "r": 1.3
+    },
+    {
+      "x": 99,
+      "y": 118,
+      "r": 4.5,
+      "material": "rubber"
+    },
+    {
+      "x": 95,
+      "y": 129,
+      "r": 1.3
+    },
+    {
+      "x": 90.5,
+      "y": 135.5,
       "r": 1.3
     },
     {
       "x": 103,
-      "y": 120,
-      "r": 4.5,
-      "material": "rubber"
-    },
-    {
-      "x": 99,
-      "y": 131,
+      "y": 129,
       "r": 1.3
     },
     {
-      "x": 94.5,
-      "y": 137.5,
+      "x": 107.5,
+      "y": 135.5,
       "r": 1.3
     },
     {
-      "x": 107,
-      "y": 131,
+      "x": 97,
+      "y": 89.5,
       "r": 1.3
     },
     {
-      "x": 111.5,
-      "y": 137.5,
+      "x": 97,
+      "y": 98.5,
       "r": 1.3
     },
     {
-      "x": 67,
-      "y": 102,
+      "x": 53,
+      "y": 89.5,
       "r": 1.3
     },
     {
-      "x": 75,
-      "y": 102,
+      "x": 53,
+      "y": 98.5,
       "r": 1.3
     },
     {
       "x": 83,
-      "y": 102,
+      "y": 130,
+      "r": 1.3,
+      "material": "pocketRim"
+    },
+    {
+      "x": 67,
+      "y": 130,
+      "r": 1.3,
+      "material": "pocketRim"
+    },
+    {
+      "x": 75,
+      "y": 133,
+      "r": 1.3,
+      "material": "pocketRim"
+    },
+    {
+      "x": 67,
+      "y": 48,
+      "r": 1.3
+    },
+    {
+      "x": 75,
+      "y": 48,
+      "r": 1.3
+    },
+    {
+      "x": 83,
+      "y": 48,
+      "r": 1.3
+    },
+    {
+      "x": 75,
+      "y": 62,
+      "r": 1.3
+    },
+    {
+      "x": 75,
+      "y": 69.5,
+      "r": 1.3
+    },
+    {
+      "x": 75,
+      "y": 77,
       "r": 1.3
     },
     {
@@ -253,23 +244,33 @@
       "r": 1.3
     },
     {
-      "x": 58.87695930660095,
-      "y": 148.33077913432618,
+      "x": 57.57458661538277,
+      "y": 147.95938167905766,
       "r": 1.3
     },
     {
-      "x": 91.12304069339905,
-      "y": 148.33077913432618,
+      "x": 92.42541338461723,
+      "y": 147.95938167905766,
       "r": 1.3
     },
     {
-      "x": 49.934235180086624,
-      "y": 145.13350704204572,
+      "x": 47.46660154572348,
+      "y": 143.96878796703447,
       "r": 1.3
     },
     {
-      "x": 100.06576481991337,
-      "y": 145.13350704204572,
+      "x": 102.53339845427652,
+      "y": 143.96878796703447,
+      "r": 1.3
+    },
+    {
+      "x": 50.030356385118864,
+      "y": 136.86287291404122,
+      "r": 1.3
+    },
+    {
+      "x": 99.96964361488114,
+      "y": 136.86287291404122,
       "r": 1.3
     },
     {
@@ -287,72 +288,6 @@
     {
       "x": 67.5,
       "y": 142,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 78.8,
-      "y": 135.5,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 71.3,
-      "y": 135.5,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 86.3,
-      "y": 135.5,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 63.8,
-      "y": 135.5,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 75,
-      "y": 129,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 82.5,
-      "y": 129,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 67.5,
-      "y": 129,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 90,
-      "y": 129,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 60,
-      "y": 129,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 78.8,
-      "y": 122.4,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 71.3,
-      "y": 122.4,
       "r": 1.3,
       "material": "pin"
     },
@@ -369,8 +304,14 @@
       "material": "pin"
     },
     {
-      "x": 75,
-      "y": 115.9,
+      "x": 108.8,
+      "y": 122.4,
+      "r": 1.3,
+      "material": "pin"
+    },
+    {
+      "x": 41.3,
+      "y": 122.4,
       "r": 1.3,
       "material": "pin"
     },
@@ -382,18 +323,6 @@
     },
     {
       "x": 67.5,
-      "y": 115.9,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 90,
-      "y": 115.9,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 60,
       "y": 115.9,
       "r": 1.3,
       "material": "pin"
@@ -418,30 +347,6 @@
     },
     {
       "x": 63.8,
-      "y": 109.4,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 93.8,
-      "y": 109.4,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 56.3,
-      "y": 109.4,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 101.3,
-      "y": 109.4,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 48.8,
       "y": 109.4,
       "r": 1.3,
       "material": "pin"
@@ -459,122 +364,62 @@
       "material": "pin"
     },
     {
-      "x": 97.5,
-      "y": 102.9,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 52.5,
-      "y": 102.9,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 105,
-      "y": 102.9,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 45,
-      "y": 102.9,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 112.5,
-      "y": 102.9,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 37.5,
-      "y": 102.9,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 93.8,
-      "y": 96.3,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 56.3,
-      "y": 96.3,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
       "x": 101.3,
-      "y": 96.3,
+      "y": 83.3,
       "r": 1.3,
       "material": "pin"
     },
     {
       "x": 48.8,
-      "y": 96.3,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 97.5,
-      "y": 89.8,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 52.5,
-      "y": 89.8,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 93.8,
       "y": 83.3,
       "r": 1.3,
       "material": "pin"
     },
     {
-      "x": 56.3,
-      "y": 83.3,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 75,
+      "x": 90,
       "y": 76.8,
       "r": 1.3,
       "material": "pin"
     },
     {
-      "x": 78.8,
+      "x": 60,
+      "y": 76.8,
+      "r": 1.3,
+      "material": "pin"
+    },
+    {
+      "x": 97.5,
+      "y": 76.8,
+      "r": 1.3,
+      "material": "pin"
+    },
+    {
+      "x": 52.5,
+      "y": 76.8,
+      "r": 1.3,
+      "material": "pin"
+    },
+    {
+      "x": 112.5,
+      "y": 76.8,
+      "r": 1.3,
+      "material": "pin"
+    },
+    {
+      "x": 37.5,
+      "y": 76.8,
+      "r": 1.3,
+      "material": "pin"
+    },
+    {
+      "x": 93.8,
       "y": 70.2,
       "r": 1.3,
       "material": "pin"
     },
     {
-      "x": 71.3,
+      "x": 56.3,
       "y": 70.2,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 75,
-      "y": 63.7,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 105,
-      "y": 63.7,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 45,
-      "y": 63.7,
       "r": 1.3,
       "material": "pin"
     },
@@ -591,26 +436,14 @@
       "material": "pin"
     },
     {
-      "x": 93.8,
+      "x": 108.8,
       "y": 57.2,
       "r": 1.3,
       "material": "pin"
     },
     {
-      "x": 56.3,
+      "x": 41.3,
       "y": 57.2,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 90,
-      "y": 50.6,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 60,
-      "y": 50.6,
       "r": 1.3,
       "material": "pin"
     },
@@ -685,12 +518,12 @@
       "innerRadius": 6.5,
       "assistRadius": 12,
       "kind": "tulip",
-      "payout": 10,
+      "payout": 9,
       "id": "attacker"
     },
     {
-      "x": 46,
-      "y": 40,
+      "x": 43,
+      "y": 38,
       "innerRadius": 5,
       "assistRadius": 10,
       "kind": "tulip",
@@ -698,8 +531,8 @@
       "id": "tulip_L"
     },
     {
-      "x": 104,
-      "y": 40,
+      "x": 107,
+      "y": 38,
       "innerRadius": 5,
       "assistRadius": 10,
       "kind": "tulip",
@@ -708,30 +541,29 @@
     },
     {
       "x": 55,
-      "y": 68,
-      "innerRadius": 5,
-      "assistRadius": 10,
-      "kind": "chucker",
-      "payout": 2,
-      "id": "go_side_L"
-    },
-    {
-      "x": 95,
-      "y": 68,
+      "y": 58,
       "innerRadius": 5,
       "assistRadius": 10,
       "kind": "chucker",
       "payout": 3,
+      "id": "go_side_L"
+    },
+    {
+      "x": 95,
+      "y": 58,
+      "innerRadius": 5,
+      "assistRadius": 10,
+      "kind": "chucker",
+      "payout": 1,
       "id": "go_side_R"
     },
     {
       "x": 75,
-      "y": 46,
-      "innerRadius": 5,
-      "assistRadius": 10,
-      "kind": "chucker",
-      "payout": 2,
-      "id": "go_center"
+      "y": 123,
+      "innerRadius": 4,
+      "assistRadius": 8,
+      "kind": "win",
+      "payout": 5
     }
   ],
   "walls": [
@@ -809,10 +641,18 @@
     },
     {
       "id": "",
-      "x1": 122,
-      "y1": 81,
-      "x2": 110,
-      "y2": 70,
+      "x1": 121,
+      "y1": 95,
+      "x2": 109,
+      "y2": 84,
+      "material": "slide"
+    },
+    {
+      "id": "",
+      "x1": 118,
+      "y1": 107,
+      "x2": 106,
+      "y2": 96,
       "material": "slide"
     }
   ],
@@ -828,15 +668,10 @@
         "type": "ballIn",
         "pocket": "go_side_L"
       },
-      "chance": 0.33,
       "actions": [
         {
-          "type": "open",
-          "targets": [
-            "tulip_L",
-            "tulip_R"
-          ],
-          "duration": 6
+          "type": "spin",
+          "roulette": "center"
         }
       ]
     },
@@ -845,83 +680,72 @@
         "type": "ballIn",
         "pocket": "go_side_R"
       },
-      "chance": 0.42,
       "actions": [
         {
-          "type": "open",
-          "targets": [
-            "tulip_L",
-            "tulip_R"
-          ],
-          "duration": 6
+          "type": "spin",
+          "roulette": "center"
         }
       ]
     },
     {
       "trigger": {
-        "type": "ballIn",
-        "pocket": "go_center"
+        "type": "rouletteWin",
+        "roulette": "center"
       },
-      "chance": 0.47,
-      "actions": [
-        {
-          "type": "open",
-          "targets": [
-            "tulip_L",
-            "tulip_R"
-          ],
-          "duration": 7
-        }
-      ]
-    },
-    {
-      "trigger": {
-        "type": "ballIn",
-        "pocket": "tulip_L"
-      },
-      "chance": 0.69,
       "actions": [
         {
           "type": "open",
           "targets": [
             "attacker"
           ],
-          "duration": 6,
-          "maxBalls": 4
-        }
-      ]
-    },
-    {
-      "trigger": {
-        "type": "ballIn",
-        "pocket": "tulip_R"
-      },
-      "chance": 0.57,
-      "actions": [
+          "duration": 11,
+          "maxBalls": 10
+        },
         {
           "type": "open",
           "targets": [
-            "attacker"
+            "tulip_L",
+            "tulip_R"
           ],
-          "duration": 6,
-          "maxBalls": 5
+          "duration": 9
+        },
+        {
+          "type": "payout",
+          "balls": 12
         }
       ]
     }
   ],
-  "roulettes": [],
+  "roulettes": [
+    {
+      "id": "center",
+      "x": 75,
+      "y": 94,
+      "width": 30,
+      "height": 13,
+      "digits": 3,
+      "symbolCount": 10,
+      "spinDuration": 2.2,
+      "winRate": 0.06,
+      "winSymbol": 7,
+      "holdMax": 4,
+      "resultDuration": 1
+    }
+  ],
   "metadata": {
     "generator": "ai-loop-v3-parts",
-    "archetype": "cascade",
-    "seed": 60807205,
+    "archetype": "seven",
+    "seed": 60707375,
     "parts": [
       "unit_attacker",
       "unit_tulip_wing",
-      "unit_chucker",
       "unit_chucker_short",
       "unit_windmill",
+      "frame_center_columns",
       "rim_deflector",
-      "field_dot_row3"
+      "pocket_top",
+      "field_dot_row3",
+      "field_column3"
     ]
   },
   "title": "AI3-10"

@@ -26,202 +26,231 @@
       "material": "pocketRim"
     },
     {
-      "x": 102,
-      "y": 24,
-      "r": 1.5,
-      "material": "pocketRim"
-    },
-    {
-      "x": 48,
-      "y": 24,
-      "r": 1.5,
-      "material": "pocketRim"
-    },
-    {
       "x": 56,
-      "y": 48,
+      "y": 43,
       "r": 1.5,
       "material": "pocketRim"
     },
     {
       "x": 42,
-      "y": 48,
+      "y": 43,
       "r": 1.5,
       "material": "pocketRim"
     },
     {
       "x": 53,
-      "y": 56,
+      "y": 51,
       "r": 1.3
     },
     {
       "x": 45,
-      "y": 56,
+      "y": 51,
       "r": 1.3
     },
     {
       "x": 94,
-      "y": 48,
+      "y": 43,
       "r": 1.5,
       "material": "pocketRim"
     },
     {
       "x": 108,
-      "y": 48,
+      "y": 43,
       "r": 1.5,
       "material": "pocketRim"
     },
     {
       "x": 97,
-      "y": 56,
+      "y": 51,
       "r": 1.3
     },
     {
       "x": 105,
-      "y": 56,
+      "y": 51,
       "r": 1.3
     },
     {
-      "x": 58,
-      "y": 71,
+      "x": 66,
+      "y": 69,
       "r": 1.5,
       "material": "pocketRim"
     },
     {
-      "x": 44,
-      "y": 71,
+      "x": 52,
+      "y": 69,
       "r": 1.5,
       "material": "pocketRim"
     },
     {
-      "x": 61,
-      "y": 80,
+      "x": 69,
+      "y": 78,
       "r": 1.4
     },
     {
-      "x": 41,
-      "y": 80,
+      "x": 49,
+      "y": 78,
       "r": 1.4
     },
     {
-      "x": 92,
-      "y": 71,
+      "x": 84,
+      "y": 69,
       "r": 1.5,
       "material": "pocketRim"
     },
     {
-      "x": 106,
-      "y": 71,
+      "x": 98,
+      "y": 69,
       "r": 1.5,
       "material": "pocketRim"
     },
     {
-      "x": 89,
-      "y": 80,
+      "x": 81,
+      "y": 78,
       "r": 1.4
     },
     {
-      "x": 109,
-      "y": 80,
+      "x": 101,
+      "y": 78,
       "r": 1.4
-    },
-    {
-      "x": 82,
-      "y": 57,
-      "r": 1.5,
-      "material": "pocketRim"
-    },
-    {
-      "x": 68,
-      "y": 57,
-      "r": 1.5,
-      "material": "pocketRim"
-    },
-    {
-      "x": 85,
-      "y": 66,
-      "r": 1.4
-    },
-    {
-      "x": 65,
-      "y": 66,
-      "r": 1.4
-    },
-    {
-      "x": 51,
-      "y": 115,
-      "r": 4.5,
-      "material": "rubber"
-    },
-    {
-      "x": 55,
-      "y": 126,
-      "r": 1.3
-    },
-    {
-      "x": 59.5,
-      "y": 132.5,
-      "r": 1.3
     },
     {
       "x": 47,
-      "y": 126,
-      "r": 1.3
-    },
-    {
-      "x": 42.5,
-      "y": 132.5,
-      "r": 1.3
-    },
-    {
-      "x": 99,
-      "y": 115,
+      "y": 117,
       "r": 4.5,
       "material": "rubber"
     },
     {
-      "x": 95,
-      "y": 126,
+      "x": 51,
+      "y": 128,
       "r": 1.3
     },
     {
-      "x": 90.5,
-      "y": 132.5,
+      "x": 55.5,
+      "y": 134.5,
+      "r": 1.3
+    },
+    {
+      "x": 43,
+      "y": 128,
+      "r": 1.3
+    },
+    {
+      "x": 38.5,
+      "y": 134.5,
       "r": 1.3
     },
     {
       "x": 103,
-      "y": 126,
+      "y": 117,
+      "r": 4.5,
+      "material": "rubber"
+    },
+    {
+      "x": 99,
+      "y": 128,
       "r": 1.3
     },
     {
-      "x": 107.5,
-      "y": 132.5,
+      "x": 94.5,
+      "y": 134.5,
+      "r": 1.3
+    },
+    {
+      "x": 107,
+      "y": 128,
+      "r": 1.3
+    },
+    {
+      "x": 111.5,
+      "y": 134.5,
       "r": 1.3
     },
     {
       "x": 38,
-      "y": 103,
+      "y": 107,
       "r": 1.3
     },
     {
       "x": 112,
-      "y": 103,
+      "y": 107,
+      "r": 1.3
+    },
+    {
+      "x": 83,
+      "y": 142,
+      "r": 1.3,
+      "material": "pocketRim"
+    },
+    {
+      "x": 67,
+      "y": 142,
+      "r": 1.3,
+      "material": "pocketRim"
+    },
+    {
+      "x": 75,
+      "y": 145,
+      "r": 1.3,
+      "material": "pocketRim"
+    },
+    {
+      "x": 75,
+      "y": 83,
       "r": 1.3
     },
     {
       "x": 75,
-      "y": 84,
+      "y": 90.5,
       "r": 1.3
     },
     {
-      "x": 77,
-      "y": 91.4,
+      "x": 75,
+      "y": 98,
       "r": 1.3
     },
     {
-      "x": 79,
-      "y": 98.8,
+      "x": 67,
+      "y": 52,
+      "r": 1.3
+    },
+    {
+      "x": 75,
+      "y": 52,
+      "r": 1.3
+    },
+    {
+      "x": 83,
+      "y": 52,
+      "r": 1.3
+    },
+    {
+      "x": 61,
+      "y": 107,
+      "r": 1.3
+    },
+    {
+      "x": 61,
+      "y": 114.5,
+      "r": 1.3
+    },
+    {
+      "x": 61,
+      "y": 122,
+      "r": 1.3
+    },
+    {
+      "x": 89,
+      "y": 107,
+      "r": 1.3
+    },
+    {
+      "x": 89,
+      "y": 114.5,
+      "r": 1.3
+    },
+    {
+      "x": 89,
+      "y": 122,
       "r": 1.3
     },
     {
@@ -255,50 +284,6 @@
       "r": 1.3
     },
     {
-      "x": 60.96853005521927,
-      "y": 141.12863075538777,
-      "r": 1.3
-    },
-    {
-      "x": 89.03146994478072,
-      "y": 141.12863075538777,
-      "r": 1.3
-    },
-    {
-      "x": 50.030356385118864,
-      "y": 136.86287291404122,
-      "r": 1.3
-    },
-    {
-      "x": 99.96964361488114,
-      "y": 136.86287291404122,
-      "r": 1.3
-    },
-    {
-      "x": 75,
-      "y": 142,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 78.8,
-      "y": 135.5,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 71.3,
-      "y": 135.5,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 75,
-      "y": 129,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
       "x": 82.5,
       "y": 129,
       "r": 1.3,
@@ -323,31 +308,7 @@
       "material": "pin"
     },
     {
-      "x": 86.3,
-      "y": 122.4,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 63.8,
-      "y": 122.4,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
       "x": 75,
-      "y": 115.9,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 82.5,
-      "y": 115.9,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 67.5,
       "y": 115.9,
       "r": 1.3,
       "material": "pin"
@@ -365,50 +326,62 @@
       "material": "pin"
     },
     {
-      "x": 86.3,
-      "y": 109.4,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 63.8,
-      "y": 109.4,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 90,
+      "x": 82.5,
       "y": 102.9,
       "r": 1.3,
       "material": "pin"
     },
     {
-      "x": 60,
+      "x": 67.5,
       "y": 102.9,
       "r": 1.3,
       "material": "pin"
     },
     {
       "x": 97.5,
-      "y": 102.9,
+      "y": 89.8,
       "r": 1.3,
       "material": "pin"
     },
     {
       "x": 52.5,
-      "y": 102.9,
+      "y": 89.8,
       "r": 1.3,
       "material": "pin"
     },
     {
-      "x": 101.3,
+      "x": 105,
+      "y": 89.8,
+      "r": 1.3,
+      "material": "pin"
+    },
+    {
+      "x": 45,
+      "y": 89.8,
+      "r": 1.3,
+      "material": "pin"
+    },
+    {
+      "x": 93.8,
       "y": 83.3,
       "r": 1.3,
       "material": "pin"
     },
     {
-      "x": 48.8,
+      "x": 56.3,
       "y": 83.3,
+      "r": 1.3,
+      "material": "pin"
+    },
+    {
+      "x": 90,
+      "y": 76.8,
+      "r": 1.3,
+      "material": "pin"
+    },
+    {
+      "x": 60,
+      "y": 76.8,
       "r": 1.3,
       "material": "pin"
     },
@@ -420,13 +393,25 @@
     },
     {
       "x": 112.5,
-      "y": 63.7,
+      "y": 50.6,
       "r": 1.3,
       "material": "pin"
     },
     {
       "x": 37.5,
-      "y": 63.7,
+      "y": 50.6,
+      "r": 1.3,
+      "material": "pin"
+    },
+    {
+      "x": 78.8,
+      "y": 44.1,
+      "r": 1.3,
+      "material": "pin"
+    },
+    {
+      "x": 71.3,
+      "y": 44.1,
       "r": 1.3,
       "material": "pin"
     },
@@ -450,30 +435,6 @@
     },
     {
       "x": 67.5,
-      "y": 37.6,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 90,
-      "y": 37.6,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 60,
-      "y": 37.6,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 112.5,
-      "y": 37.6,
-      "r": 1.3,
-      "material": "pin"
-    },
-    {
-      "x": 37.5,
       "y": 37.6,
       "r": 1.3,
       "material": "pin"
@@ -501,6 +462,18 @@
       "y": 31.1,
       "r": 1.3,
       "material": "pin"
+    },
+    {
+      "x": 97.5,
+      "y": 24.5,
+      "r": 1.3,
+      "material": "pin"
+    },
+    {
+      "x": 52.5,
+      "y": 24.5,
+      "r": 1.3,
+      "material": "pin"
     }
   ],
   "pockets": [
@@ -525,28 +498,12 @@
       "innerRadius": 6.5,
       "assistRadius": 12,
       "kind": "tulip",
-      "payout": 9,
+      "payout": 11,
       "id": "attacker"
     },
     {
-      "x": 55,
-      "y": 21,
-      "innerRadius": 4.5,
-      "assistRadius": 9,
-      "kind": "win",
-      "payout": 1
-    },
-    {
-      "x": 95,
-      "y": 21,
-      "innerRadius": 4.5,
-      "assistRadius": 9,
-      "kind": "win",
-      "payout": 1
-    },
-    {
       "x": 49,
-      "y": 44,
+      "y": 39,
       "innerRadius": 5,
       "assistRadius": 10,
       "kind": "tulip",
@@ -555,25 +512,25 @@
     },
     {
       "x": 101,
-      "y": 44,
+      "y": 39,
       "innerRadius": 5,
       "assistRadius": 10,
       "kind": "tulip",
-      "payout": 6,
+      "payout": 5,
       "id": "tulip_R"
     },
     {
-      "x": 51,
-      "y": 67,
+      "x": 59,
+      "y": 65,
       "innerRadius": 5,
       "assistRadius": 10,
       "kind": "chucker",
-      "payout": 1,
+      "payout": 2,
       "id": "go_side_L"
     },
     {
-      "x": 99,
-      "y": 67,
+      "x": 91,
+      "y": 65,
       "innerRadius": 5,
       "assistRadius": 10,
       "kind": "chucker",
@@ -582,12 +539,11 @@
     },
     {
       "x": 75,
-      "y": 53,
-      "innerRadius": 5,
-      "assistRadius": 10,
-      "kind": "chucker",
-      "payout": 3,
-      "id": "go_center"
+      "y": 135,
+      "innerRadius": 4,
+      "assistRadius": 8,
+      "kind": "win",
+      "payout": 5
     }
   ],
   "walls": [
@@ -666,17 +622,41 @@
     {
       "id": "",
       "x1": 38,
-      "y1": 96,
+      "y1": 100,
       "x2": 66,
-      "y2": 91,
+      "y2": 95,
       "material": "slide"
     },
     {
       "id": "",
       "x1": 112,
-      "y1": 96,
+      "y1": 100,
       "x2": 84,
-      "y2": 91,
+      "y2": 95,
+      "material": "slide"
+    },
+    {
+      "id": "",
+      "x1": 122,
+      "y1": 81,
+      "x2": 110,
+      "y2": 70,
+      "material": "slide"
+    },
+    {
+      "id": "",
+      "x1": 121,
+      "y1": 95,
+      "x2": 109,
+      "y2": 84,
+      "material": "slide"
+    },
+    {
+      "id": "",
+      "x1": 118,
+      "y1": 69,
+      "x2": 106,
+      "y2": 58,
       "material": "slide"
     }
   ],
@@ -692,7 +672,7 @@
         "type": "ballIn",
         "pocket": "go_side_L"
       },
-      "chance": 0.48,
+      "chance": 0.45,
       "actions": [
         {
           "type": "open",
@@ -709,7 +689,7 @@
         "type": "ballIn",
         "pocket": "go_side_R"
       },
-      "chance": 0.33,
+      "chance": 0.47,
       "actions": [
         {
           "type": "open",
@@ -717,24 +697,7 @@
             "tulip_L",
             "tulip_R"
           ],
-          "duration": 7
-        }
-      ]
-    },
-    {
-      "trigger": {
-        "type": "ballIn",
-        "pocket": "go_center"
-      },
-      "chance": 0.36,
-      "actions": [
-        {
-          "type": "open",
-          "targets": [
-            "tulip_L",
-            "tulip_R"
-          ],
-          "duration": 6
+          "duration": 5
         }
       ]
     },
@@ -743,24 +706,7 @@
         "type": "ballIn",
         "pocket": "tulip_L"
       },
-      "chance": 0.41,
-      "actions": [
-        {
-          "type": "open",
-          "targets": [
-            "attacker"
-          ],
-          "duration": 6,
-          "maxBalls": 4
-        }
-      ]
-    },
-    {
-      "trigger": {
-        "type": "ballIn",
-        "pocket": "tulip_R"
-      },
-      "chance": 0.58,
+      "chance": 0.55,
       "actions": [
         {
           "type": "open",
@@ -771,21 +717,40 @@
           "maxBalls": 3
         }
       ]
+    },
+    {
+      "trigger": {
+        "type": "ballIn",
+        "pocket": "tulip_R"
+      },
+      "chance": 0.46,
+      "actions": [
+        {
+          "type": "open",
+          "targets": [
+            "attacker"
+          ],
+          "duration": 6,
+          "maxBalls": 6
+        }
+      ]
     }
   ],
   "roulettes": [],
   "metadata": {
     "generator": "ai-loop-v3-parts",
     "archetype": "cascade",
-    "seed": 60807290,
+    "seed": 60807154,
     "parts": [
       "unit_attacker",
-      "row_bottom_wins",
       "unit_tulip_wing",
       "unit_chucker_short",
       "unit_windmill",
       "shelf_slide",
-      "decor_radial_dash"
+      "rim_deflector",
+      "pocket_top",
+      "field_column3",
+      "field_dot_row3"
     ]
   },
   "title": "AI3-01"

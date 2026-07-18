@@ -238,6 +238,30 @@ canvas { background: #1a1a1a; cursor: crosshair; transform-origin: 0 0; }
     <button class="file-btn" id="btn-zoom-reset" style="padding:4px 6px;font-size:10px">Reset</button>
   </div>
 
+  <h3>Physics</h3>
+  <div id="physics-group">
+    <div class="bg-row" style="margin-top:4px">
+      <label>Gravity</label>
+      <input type="range" id="phys-gravity" min="-0.35" max="-0.05" step="0.01" value="-0.10">
+      <span id="phys-gravity-val" style="font-size:10px;width:36px;text-align:right">-0.10</span>
+    </div>
+    <div class="bg-row" style="margin-top:4px">
+      <label>Max VX</label>
+      <input type="range" id="phys-max-vx" min="1" max="12" step="0.5" value="12">
+      <span id="phys-max-vx-val" style="font-size:10px;width:36px;text-align:right">12.0</span>
+    </div>
+    <div class="bg-row" style="margin-top:4px">
+      <label>Max VY</label>
+      <input type="range" id="phys-max-vy" min="2" max="12" step="0.5" value="12">
+      <span id="phys-max-vy-val" style="font-size:10px;width:36px;text-align:right">12.0</span>
+    </div>
+    <div class="bg-row" style="margin-top:4px">
+      <label>Pocket</label>
+      <input type="range" id="phys-pocket" min="0" max="0.6" step="0.01" value="0.18">
+      <span id="phys-pocket-val" style="font-size:10px;width:36px;text-align:right">0.18</span>
+    </div>
+  </div>
+
   <h3>Ball Check</h3>
   <div id="ballcheck-group">
     <div style="display:flex;align-items:center;gap:6px">
@@ -292,6 +316,18 @@ canvas { background: #1a1a1a; cursor: crosshair; transform-origin: 0 0; }
       <label style="font-size:10px;color:#aaa">sec</label>
     </div>
     <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+      <input type="checkbox" id="chk-sim-jitter" checked>
+      <label for="chk-sim-jitter" style="font-size:11px">Launch Jitter</label>
+    </div>
+    <div class="bg-row" style="margin-top:4px">
+      <label>Jit Spd</label>
+      <input type="number" id="sim-jspeed" value="0.5" step="0.1" min="0" style="width:48px;padding:2px 4px;background:#0f3460;border:1px solid #1a4a7a;border-radius:3px;color:#e0e0e0;font-size:10px">
+      <span style="font-size:10px;color:#aaa">%</span>
+      <label style="font-size:10px;color:#aaa;width:24px">Ang</label>
+      <input type="number" id="sim-jangle" value="0.3" step="0.1" min="0" style="width:48px;padding:2px 4px;background:#0f3460;border:1px solid #1a4a7a;border-radius:3px;color:#e0e0e0;font-size:10px">
+      <span style="font-size:10px;color:#aaa">°</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
       <input type="checkbox" id="chk-sim-trail">
       <label for="chk-sim-trail" style="font-size:11px">Show trail</label>
     </div>
@@ -316,8 +352,8 @@ canvas { background: #1a1a1a; cursor: crosshair; transform-origin: 0 0; }
     </div>
     <div style="display:flex;align-items:center;gap:3px">
       <label style="color:#aaa;width:34px">Jitter</label>
-      <input type="number" id="an-jspeed" value="0.5" step="0.1" min="0" style="width:40px"><span style="color:#666">%</span>
-      <input type="number" id="an-jangle" value="0.3" step="0.1" min="0" style="width:40px"><span style="color:#666">°</span>
+      <input type="number" id="an-jspeed" value="3.0" step="0.5" min="0" style="width:40px"><span style="color:#666">%</span>
+      <input type="number" id="an-jangle" value="2.0" step="0.5" min="0" style="width:40px"><span style="color:#666">°</span>
     </div>
     <button class="file-btn" id="btn-analyze" style="background:#1a4a7a;border-color:#2a6aaa">Run Sweep</button>
     <div style="display:flex;align-items:center;gap:3px">
@@ -500,7 +536,7 @@ let simSpinCount = 0;
 let simJackpotCount = 0;
 
 const SIM_TUNING = {
-  gravityY: -0.18,
+  gravityY: -0.10,
   maxSpeedX: 12.0,
   maxSpeedY: 12.0,
   pocketAssist: 0.18,
@@ -586,6 +622,16 @@ function simMakeBall(power) {
   return { x: lx, y: ly, vx: speed * Math.cos(angle), vy: speed * Math.sin(angle), radius: 2.4, frozen: false };
 }
 
+function simLaunchJitter() {
+  if (!document.getElementById('chk-sim-jitter').checked) {
+    return { speedPct: 0, angleDeg: 0 };
+  }
+  return {
+    speedPct: parseFloat(document.getElementById('sim-jspeed').value) || 0,
+    angleDeg: parseFloat(document.getElementById('sim-jangle').value) || 0,
+  };
+}
+
 function saveTrail(b) {
   if (!b.trail) return;
   simFinishedTrails.push(b.trail);
@@ -598,11 +644,10 @@ function simLaunchBall() {
   const power = parseFloat(document.getElementById('sim-power').value);
   if (power <= 0) return;
   const angleDeg = stageData.launcher.angle !== undefined ? stageData.launcher.angle : 90;
-  const jitterSpeedPct = parseFloat(document.getElementById('an-jspeed').value) || 0;
-  const jitterAngleDeg = parseFloat(document.getElementById('an-jangle').value) || 0;
+  const jitter = simLaunchJitter();
   let speed = simLaunchSpeed(power);
-  speed *= 1 + (Math.random() * 2 - 1) * jitterSpeedPct / 100;
-  const launchAngle = (angleDeg + (Math.random() * 2 - 1) * jitterAngleDeg) * Math.PI / 180;
+  speed *= 1 + (Math.random() * 2 - 1) * jitter.speedPct / 100;
+  const launchAngle = (angleDeg + (Math.random() * 2 - 1) * jitter.angleDeg) * Math.PI / 180;
   const vx = speed * Math.cos(launchAngle);
   const vy = speed * Math.sin(launchAngle);
   const ball = {
@@ -3870,6 +3915,20 @@ document.getElementById('sim-knee-speed').addEventListener('input', (e) => {
   updateSimLaunchMapping();
 });
 
+function updatePhysicsTuningFromUI() {
+  SIM_TUNING.gravityY = parseFloat(document.getElementById('phys-gravity').value) || -0.10;
+  SIM_TUNING.maxSpeedX = parseFloat(document.getElementById('phys-max-vx').value) || 12.0;
+  SIM_TUNING.maxSpeedY = parseFloat(document.getElementById('phys-max-vy').value) || 12.0;
+  SIM_TUNING.pocketAssist = parseFloat(document.getElementById('phys-pocket').value) || 0.18;
+  document.getElementById('phys-gravity-val').textContent = SIM_TUNING.gravityY.toFixed(2);
+  document.getElementById('phys-max-vx-val').textContent = SIM_TUNING.maxSpeedX.toFixed(1);
+  document.getElementById('phys-max-vy-val').textContent = SIM_TUNING.maxSpeedY.toFixed(1);
+  document.getElementById('phys-pocket-val').textContent = SIM_TUNING.pocketAssist.toFixed(2);
+}
+for (const id of ['phys-gravity', 'phys-max-vx', 'phys-max-vy', 'phys-pocket']) {
+  document.getElementById(id).addEventListener('input', updatePhysicsTuningFromUI);
+}
+
 // ── Zoom buttons ──
 document.getElementById('btn-zoom-in').addEventListener('click', () => { setZoom(zoomLevel * 1.25); draw(); });
 document.getElementById('btn-zoom-out').addEventListener('click', () => { setZoom(zoomLevel * 0.8); draw(); });
@@ -3879,6 +3938,7 @@ document.getElementById('btn-zoom-reset').addEventListener('click', () => { zoom
 document.getElementById('btn-add-event').addEventListener('click', addEvent);
 
 // ── Initial draw ──
+updatePhysicsTuningFromUI();
 updateSimLaunchMapping();
 renderEvents();
 draw();
